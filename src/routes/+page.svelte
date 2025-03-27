@@ -1,5 +1,4 @@
 <script lang="ts">
-	// グローバル変数を一番上にまとめる
 	import NotificationBar from "../components/notificationBar.svelte";
 	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { onDestroy, onMount } from "svelte";
