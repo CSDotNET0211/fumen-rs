@@ -1,0 +1,29 @@
+{
+  "identifier": "desktop-capability",
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
+  "windows": [
+    "main",
+    "debug"
+  ],
+  "permissions": [
+    "global-shortcut:default",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "core:window:allow-show",
+    "core:path:default",
+    "core:resources:default",
+    "core:window:allow-hide",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-position",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "dialog:allow-open",
+    "dialog:default",
+    "process:default"
+  ]
+}

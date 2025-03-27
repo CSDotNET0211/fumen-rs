@@ -1,0 +1,4 @@
+{
+  "svelte.enable-ts-plugin": true,
+  "html.customData": ["./node_modules/@shoelace-style/shoelace/dist/vscode.html-custom-data.json"]
+}
