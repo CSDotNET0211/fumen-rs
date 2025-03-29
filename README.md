@@ -4,11 +4,11 @@
 
  <a>
     <picture>
-      <source height="125" media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CSDotNET0211/fumen-rs/main/static/128x128.png">
-      <img height="125" alt="fumen-rs" src="https://raw.githubusercontent.com/CSDotNET0211/fumen-rs/main/static/128x128.png">
+      <source height="125" media="(prefers-color-scheme: dark)" srcset="./static/128x128.png">
+      <img height="125" alt="fumen-rs" src="./static/128x128.png">
     </picture>
   </a>
-  <br>
+  </br>
 
   <a>
     <img height="20px" src="https://img.shields.io/github/downloads/CSDotNET0211/fumen-rs/total
@@ -16,6 +16,14 @@
     </a>
   <a>
       <img height="20px" src="https://img.shields.io/github/license/CSDotNET0211/fumen-rs">
+  </a>
+
+</br>
+   <a>
+    <picture>
+      <source height="300" media="(prefers-color-scheme: dark)" srcset="./static/thumbnail.png">
+      <img height="300" alt="fumen-rs" src="./static/thumbnail.png">
+    </picture>
   </a>
 </div>
 
@@ -37,11 +45,40 @@
 
 ## Features
 
-- Botによる支援
-- オンライン譜面検討
-- 譜面の画像認識
-- テト譜との相互変換(tinyurl入力対応)
-- 履歴
+<details>
+  <summary>Assistance with Bots</summary>
+  The application supports custom bot integration, allowing you to analyze scenarios using bots. By default, the application includes `cold-clear.dll` for analysis. Refer to the [Adding Bot DLLs](#adding-bot-dlls) section for detailed instructions on adding your own bots.
+  </details>
+
+<details>
+  <summary>Online Fumen Analysis</summary>
+  Share and collaboratively edit fumen in real-time.
+</details>
+
+<details>
+  <summary>Fumen Image Recognition</summary>
+  Basic image recognition capabilities for fumen analysis. Currently, only PPT default images are supported, with more images under development.
+
+   <picture>
+      <source height="300" media="(prefers-color-scheme: dark)" srcset="./static/imageRecog.png">
+      <img height="300" alt="fumen-rs" src="./static/imageRecog.png">
+    </picture>
+</details>
+
+<details>
+  <summary>Compatible with Fumen</summary>
+  Fully compatible with the fumen format, enabling seamless integration and analysis of fumen data.
+
+   <picture>
+      <source height="300" media="(prefers-color-scheme: dark)" srcset="./static/fumenRecog.png">
+      <img height="300" alt="fumen-rs" src="./static/fumenRecog.png">
+    </picture>
+</details>
+
+<details>
+  <summary>History Tracking</summary>
+  Keep track of your edit history within the application. This feature allows you to undo and redo.
+</details>
 
 ## Installation Instructions
 
