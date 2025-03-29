@@ -39,7 +39,8 @@ export class MenuItem {
 	shortcut: string;
 	callback: () => void;
 	submenu?: MenuItem[];
-	checked?: boolean;
+	checked: boolean;
+	disabled: boolean;
 
 	constructor(
 		type: MenuItemType,
@@ -47,14 +48,16 @@ export class MenuItem {
 		shortcut: string,
 		callback: () => void,
 		submenu?: MenuItem[],
-		checked?: boolean
+		checked?: boolean,
+		disabled?: boolean
 	) {
 		this.type = type;
 		this.name = name;
 		this.shortcut = shortcut;
 		this.callback = callback;
 		this.submenu = submenu;
-		this.checked = checked;
+		this.checked = checked ?? false;
+		this.disabled = disabled ?? false;
 	}
 }
 

@@ -39,28 +39,19 @@
 
 	function resetInactivityTimer() {
 		clearTimeout(inactivityTimeout);
-		opacity = 1; // Reset opacity to full when movement occurs
+		opacity = 1;
 		inactivityTimeout = setTimeout(() => {
-			opacity = 0.5; // Reduce opacity after 5 seconds of inactivity
+			opacity = 0.5;
 		}, 5000);
 	}
 
 	onMount(() => {
 		updateNameTagColor();
 		resetInactivityTimer();
-
-		//	unlistenX = x.subscribe((value) => resetInactivityTimer());
-		//	unlistenY = y.subscribe((value) => resetInactivityTimer());
-
-		return () => {
-			//		unlistenX();
-			//		unlistenY();
-		};
 	});
 
 	$: {
 		updateNameTagColor();
-		console.log("a");
 		resetInactivityTimer();
 	}
 </script>

@@ -129,6 +129,7 @@
 	function handleFieldUpdate(tetris_fields: TetrisEnv[]) {
 		let env = tetris_fields[get(fieldIndex)];
 		if (env == null) return;
+		//console.log(env);
 
 		emitTo("main", "onupdatefield", { board: env.board });
 		emitTo("main", "onupdatehold", env.hold);

@@ -1,7 +1,6 @@
 export class ImageProcessor {
 	static MINO_WIDTH_COUNT = 10;
 
-	// Define the Chunk type
 	static getBlockChunks(width: number, height: number): Chunk[] {
 		const chunks = [];
 		const blockWidth = Math.round(width / this.MINO_WIDTH_COUNT);
@@ -158,7 +157,6 @@ export class ImageProcessor {
 	}
 }
 
-// Define the Chunk type
 export type Chunk = {
 	x: number;
 	y: number;

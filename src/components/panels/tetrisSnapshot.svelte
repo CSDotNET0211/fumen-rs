@@ -3,7 +3,7 @@
 	import Panel from "../panel.svelte";
 	import type { TetrisEnv } from "tetris";
 	import { fieldIndex, fields, history } from "../../store";
-	import { getCanvasImage } from "../field/tetrisBoard.svelte";
+	import { getCanvasImage } from "../fields/tetrisBoard.svelte";
 	import type { History } from "../../history";
 	import { t } from "../../translations/translations";
 	import { emitTo } from "@tauri-apps/api/event";

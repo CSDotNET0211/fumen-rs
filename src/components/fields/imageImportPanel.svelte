@@ -44,7 +44,7 @@
 	let loadedImage: Sprite;
 	let bgImage: Sprite;
 
-	let isLoading = false; // Add a loading state
+	let isLoading = false;
 	let showDebugButton = false;
 
 	function toggleDebugButton() {
@@ -101,15 +101,15 @@
 			isDragging = true;
 			startX = e.data.global.x;
 			startY = e.data.global.y;
-			app.stage.cursor = "grabbing"; // Change cursor to grabbing
+			app.stage.cursor = "grabbing";
 		});
 		app.stage.on("pointerup", () => {
 			isDragging = false;
-			app.stage.cursor = "grab"; // Revert cursor to grab
+			app.stage.cursor = "grab";
 		});
 		app.stage.on("pointerupoutside", () => {
 			isDragging = false;
-			app.stage.cursor = "grab"; // Revert cursor to grab
+			app.stage.cursor = "grab";
 		});
 		app.stage.on("pointermove", (e) => {
 			if (isDragging) {
@@ -126,11 +126,9 @@
 			const zoomFactor = 1.01;
 
 			if (e.deltaY < 0) {
-				// Zoom in
 				loadedImage.scale.x *= zoomFactor;
 				loadedImage.scale.y *= zoomFactor;
 			} else {
-				// Zoom out
 				loadedImage.scale.x /= zoomFactor;
 				loadedImage.scale.y /= zoomFactor;
 			}
@@ -254,16 +252,10 @@
 
 		const predictions: string[] = [];
 
-		// Add empty predictions for the remaining cells
 		for (let i = 0; i < WIDTH * HEIGHT - chunkDataArray.length; i++) {
 			predictions.push("empty");
 		}
 
-		/*	saveChunkImages(chunkDataArray, {
-				width: chunks[0].width,
-				height: chunks[0].height,
-			});
-	*/
 		console.log("start prediction");
 		for (const chunkData of chunkDataArray) {
 			const base64Chunk = ImageProcessor.createImageFromRGBA(
@@ -292,7 +284,7 @@
 		}
 
 		if (predictionFailed) {
-			return; // Exit early on failure
+			return;
 		}
 
 		fields.update((tetris_fields: TetrisEnv[]) => {

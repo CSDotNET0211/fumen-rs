@@ -5,15 +5,15 @@
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { Rectangle } from "pixi.js";
 
-	Chart.register(...registerables); // Register all necessary components
+	Chart.register(...registerables);
 
 	let imageSrc: string | null = null;
 	let chart: Chart | null = null;
 	let chartS: Chart | null = null;
 	let chartV: Chart | null = null;
-	let compressionFactor = 5; // Compression factor to group data
-	let sampleSize: number = 10; // Default sample size
-	let imageList: { type: string; class: string; path: string }[] = []; // List to store image data
+	let compressionFactor = 5;
+	let sampleSize: number = 10;
+	let imageList: { type: string; class: string; path: string }[] = [];
 
 	const datasetColors = [
 		"black",
@@ -274,7 +274,7 @@
 		});
 
 		if (selectedFolder && typeof selectedFolder === "string") {
-			imageList = []; // Clear the list
+			imageList = [];
 
 			const typeFolders = await readDir(selectedFolder, {
 				dir: BaseDirectory.App,

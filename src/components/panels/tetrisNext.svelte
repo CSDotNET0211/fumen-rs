@@ -12,7 +12,7 @@
 	import { listen } from "@tauri-apps/api/event";
 	import type { Tetromino } from "tetris/src/tetromino.ts";
 	import { onDestroy, onMount } from "svelte";
-	import { tetrominoBlockTextures } from "../field/tetrisBoard.svelte";
+	import { tetrominoBlockTextures } from "../fields/tetrisBoard.svelte";
 
 	let unlisten: any;
 

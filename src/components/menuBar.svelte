@@ -1,5 +1,4 @@
 <script lang="ts">
-	// Remove local menuItems definition
 	import { onDestroy, onMount } from "svelte";
 	import { get } from "svelte/store";
 	import { emitTo, type UnlistenFn } from "@tauri-apps/api/event";
@@ -93,10 +92,13 @@
 						true,
 					) as HTMLDivElement;
 					separator.removeAttribute("id");
-					separator.style.display = ""; // Remove display none
+					separator.style.display = "";
 					subMenu.appendChild(separator);
 					break;
 				case MenuItemType.Normal:
+					if (!subMenuItem.disabled)
+						subMenu.classList.remove("disabled");
+
 					const submenuItemTemplate = document.getElementById(
 						"submenu-item",
 					) as HTMLDivElement;
@@ -104,11 +106,16 @@
 						true,
 					) as HTMLDivElement;
 					subMenuItemElement.removeAttribute("id");
-					subMenuItemElement.style.display = ""; // Remove display none
-					subMenuItemElement.onclick = () => {
-						subMenuItem.callback();
-						closeMenu();
-					};
+					subMenuItemElement.style.display = "";
+
+					if (subMenuItem.disabled) {
+						subMenuItemElement.classList.add("disabled");
+					} else {
+						subMenuItemElement.onclick = () => {
+							subMenuItem.callback();
+							closeMenu();
+						};
+					}
 					subMenu.appendChild(subMenuItemElement);
 
 					const title = subMenuItemElement.querySelector(
@@ -150,6 +157,9 @@
 					}
 					break;
 				case MenuItemType.Toggle:
+					if (!subMenuItem.disabled)
+						subMenu.classList.remove("disabled");
+
 					const toggleItemTemplate = document.getElementById(
 						"submenu-item",
 					) as HTMLDivElement;
@@ -157,12 +167,17 @@
 						true,
 					) as HTMLDivElement;
 					toggleItemElement.removeAttribute("id");
-					toggleItemElement.style.display = ""; // Remove display none
-					toggleItemElement.onclick = () => {
-						subMenuItem.checked = !subMenuItem.checked;
-						subMenuItem.callback();
-						closeMenu();
-					};
+					toggleItemElement.style.display = "";
+
+					if (subMenuItem.disabled) {
+						toggleItemElement.classList.add("disabled");
+					} else {
+						toggleItemElement.onclick = () => {
+							subMenuItem.checked = !subMenuItem.checked;
+							subMenuItem.callback();
+							closeMenu();
+						};
+					}
 					subMenu.appendChild(toggleItemElement);
 
 					const toggleTitle = toggleItemElement.querySelector(
@@ -256,7 +271,6 @@
 		}
 
 		if (shouldOpen) {
-			// Remove any existing submenu
 			const existingSubMenu = menuBar.querySelector(".submenu");
 			if (existingSubMenu) {
 				existingSubMenu.remove();
@@ -269,17 +283,14 @@
 			subMenu.style.zIndex = "1000";
 			subMenu.style.visibility = "visible";
 
-			// Append submenu to menu-bar to measure its dimensions
 			menuBar.appendChild(subMenu);
 
-			// Force reflow to ensure correct dimensions
 			const rect = menuItemElement.getBoundingClientRect();
 			const submenuRect = subMenu.getBoundingClientRect();
 			const windowSize = await getCurrentWindow().innerSize();
 			const screenWidth = windowSize?.width;
 			let leftPosition = rect.left;
 
-			// Adjust position if submenu exceeds screen width
 			if (leftPosition + submenuRect.width > screenWidth) {
 				leftPosition = screenWidth - submenuRect.width - 10;
 			}
@@ -363,7 +374,7 @@
 <!-- svelte-ignore a11y_mouse_events_have_key_events -->
 <div
 	id="submenu"
-	class="submenu"
+	class="submenu disabled"
 	style="display: none;pointer-events: all;"
 ></div>
 <div id="separator" class="separator" style="display: none;"></div>
@@ -379,6 +390,7 @@
 	<span class="arrow"></span>
 </div>
 <div class="active" style="display: none;"></div>
+<!-- end -->
 
 <div class="panel" data-tauri-drag-region>
 	<img src="128x128.png" alt="Logo" class="logo" />
@@ -391,7 +403,7 @@
 				onclick={() => toggleMenu(item.name)}
 				onmouseenter={() => {
 					if (activeMenu) {
-						toggleMenu(item.name, true); // Open the submenu on mouse enter if another menu is already open
+						toggleMenu(item.name, true);
 					}
 				}}
 			>
@@ -475,7 +487,6 @@
 		align-items: center;
 	}
 	.menu-item {
-		color: #cccccc;
 		display: flex;
 		align-items: center;
 		padding-left: 7px;
@@ -619,5 +630,10 @@
 		width: 14px;
 		height: 14px;
 		margin-right: 5px;
+	}
+
+	.disabled {
+		color: #666666;
+		pointer-events: none;
 	}
 </style>

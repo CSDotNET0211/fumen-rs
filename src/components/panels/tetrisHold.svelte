@@ -15,7 +15,7 @@
 	import type { Tetromino } from "tetris/src/tetromino";
 	import { listen } from "@tauri-apps/api/event";
 	import type { History } from "../../history";
-	import { tetrominoBlockTextures } from "../field/tetrisBoard.svelte";
+	import { tetrominoBlockTextures } from "../fields/tetrisBoard.svelte";
 
 	let disabled = writable(false);
 	let unlisten: any;

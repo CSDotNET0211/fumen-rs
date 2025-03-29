@@ -359,7 +359,6 @@
 		}
 	}
 
-	/// Read image from pixi application
 	export async function getCanvasImage(): Promise<string | undefined> {
 		const data = await tetrisBoardApp?.renderer.extract.base64(
 			tetrisBoardApp.stage,

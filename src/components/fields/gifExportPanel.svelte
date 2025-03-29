@@ -54,7 +54,6 @@
 	let endIndex = null;
 
 	onMount(() => {
-		// Fetch history entries
 		historyEntries = get(history).get();
 	});
 
@@ -64,7 +63,6 @@
 		} else if (endIndex === null) {
 			endIndex = index;
 			if (endIndex < startIndex) {
-				// Swap start and end if end is before start
 				[startIndex, endIndex] = [endIndex, startIndex];
 			}
 		} else {

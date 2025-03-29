@@ -55,6 +55,8 @@
 		};
 	} = {};
 
+	let isConnecting = false;
+
 	function handleShareClick(
 		event: MouseEvent & { currentTarget: EventTarget & HTMLDivElement },
 	) {
@@ -99,9 +101,11 @@
 	});
 
 	function handleConnectClick() {
+		isConnecting = true;
 		socket = io(get(gameConfig)?.socketAddress!);
 		socket.on("connect", () => {
 			isConnected = true;
+			isConnecting = false;
 			socketId = socket!.id!;
 
 			const start = Date.now();
@@ -112,6 +116,7 @@
 		});
 		socket.on("disconnect", () => {
 			isConnected = false;
+			isConnecting = false;
 			socketId = null;
 			players.set(new Set());
 		});
@@ -288,7 +293,7 @@
 	setInterval(sendCursorPosition, 50);
 
 	$: cursors = Array.from($players)
-		.filter((player) => player.id !== socketId) // Exclude the current user's cursor
+		.filter((player) => player.id !== socketId)
 		.reduce(
 			(
 				acc: {
@@ -350,9 +355,21 @@
 	>
 		<div class="title">Online</div>
 		{#if !isConnected}
-			<button class="connect-button" onclick={handleConnectClick}
-				>Connect</button
+			<button
+				class="connect-button"
+				onclick={handleConnectClick}
+				disabled={isConnecting}
 			>
+				{#if isConnecting}
+					<img
+						src="loading.gif"
+						alt="Loading..."
+						style="height:100%"
+					/>
+				{:else}
+					Connect
+				{/if}
+			</button>
 		{:else if $players.size === 0}
 			<div class="connected-info">
 				<p>Socket ID: {socketId}</p>
@@ -458,7 +475,8 @@
 
 	.connect-button {
 		width: 100%;
-		padding: 8px;
+		height: 30px;
+		padding: 2px;
 		background-color: #007bff;
 		color: #fff;
 		border: none;
