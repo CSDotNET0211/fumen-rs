@@ -1,7 +1,7 @@
 <script>
 	import { writable } from "svelte/store";
-	import History from "./notification/history.svelte";
-	import Share from "./notification/share.svelte";
+	import History from "./bottoms/history.svelte";
+	import Share from "./bottoms/share.svelte";
 
 	export const panelXPos = writable(0);
 </script>

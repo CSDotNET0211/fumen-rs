@@ -68,7 +68,7 @@ const shortcuts = writable<Record<string, { callback: () => void }>>({});
 const registry = new ShortcutRegistry();
 
 export async function loadShortcuts(): Promise<void> {
-	const context = import.meta.glob("../register/shortcuts/*.ts");
+	const context = import.meta.glob("../registry/shortcuts/*.ts");
 	for (const path in context) {
 		const module = await context[path]();
 		for (const key in module as Record<string, any>) {

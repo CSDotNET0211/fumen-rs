@@ -40,7 +40,7 @@ async function executeCommand(name: string, ...args: any[]): Promise<void> {
 }
 
 async function loadCommands(): Promise<void> {
-	const context = import.meta.glob("../register/commands/*.ts");
+	const context = import.meta.glob("../registry/commands/*.ts");
 	for (const path in context) {
 		const module = await context[path]();
 		for (const key in module as Record<string, any>) {

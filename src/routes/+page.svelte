@@ -1,5 +1,5 @@
 <script lang="ts">
-	import NotificationBar from "../components/notificationBar.svelte";
+	import BottomBar from "../components/bottomBar.svelte";
 	import { onDestroy, onMount } from "svelte";
 	import { get, writable, type Writable } from "svelte/store";
 	import { type Pages } from "tetris-fumen";
@@ -41,7 +41,7 @@
 	import {
 		fumenImage,
 		fumenPages,
-	} from "../register/commands/builtinCommands.ts";
+	} from "../registry/commands/builtinCommands.ts";
 	import {
 		executeCommand,
 		loadCommands,
@@ -491,7 +491,7 @@
 					{/each}
 				</div>
 			</div>
-			<NotificationBar></NotificationBar>
+			<BottomBar></BottomBar>
 		</main>
 	{/await}
 </main>

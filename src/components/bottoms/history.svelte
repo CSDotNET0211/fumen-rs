@@ -5,7 +5,7 @@
 	import { get } from "svelte/store";
 	import type { History } from "../../history";
 	import { emitTo } from "@tauri-apps/api/event";
-	import panelXPos from "../notificationBar.svelte";
+	import panelXPos from "../bottomBar.svelte";
 
 	let history_svg: string = "/history.svg";
 	let showPanel = false;
