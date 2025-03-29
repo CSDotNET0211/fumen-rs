@@ -2,7 +2,8 @@
 
  <a>
     <picture>
-     <img height="125" alt="Fiber" src="https://raw.githubusercontent.com/CSDotNET0211/fumen-rs/main/static/128x128.png">
+      <source height="125" media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/CSDotNET0211/fumen-rs/main/static/128x128.png">
+      <img height="125" alt="fumen-rs" src="https://raw.githubusercontent.com/CSDotNET0211/fumen-rs/main/static/128x128.png">
     </picture>
   </a>
   <br>
