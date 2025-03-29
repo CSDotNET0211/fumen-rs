@@ -59,7 +59,8 @@
   "bundle": {
     "windows": {
       "nsis": {
-        "installerHooks": "./windows/hooks.nsi"
+        "installerHooks": "./windows/hooks.nsi",
+        "installerIcon": "icons/icon.ico"
       }
     },
     "resources": [

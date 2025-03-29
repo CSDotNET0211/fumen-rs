@@ -11,8 +11,7 @@
   </br>
 
   <a>
-    <img height="20px" src="https://img.shields.io/github/downloads/CSDotNET0211/fumen-rs/total
-    ">
+    <img height="20px" src="https://img.shields.io/github/downloads/CSDotNET0211/fumen-rs/total">
     </a>
   <a>
       <img height="20px" src="https://img.shields.io/github/license/CSDotNET0211/fumen-rs">
@@ -99,20 +98,46 @@ For the installer version, simply run the installer. The application will be ins
 To change the block images, replace the files in the `assets/images` folder located in the installation directory.
 
 ```
-%LOCALAPPDATA%\fumen-rs\assets\images
+assets\images
 ```
 
 After replacing the images, restart the application to apply the changes.
 
 ## Build Instructions
 
-To build the project, ensure you have Rust installed. Then, run the following commands:
+To build the project, ensure you have Rust installed. Additionally, register the Tetris-related npm package locally before proceeding with the Rust build. Follow these steps:
 
-```bash
-git clone https://github.com/CSDotNET0211/fumen-rs.git
-cd fumen-rs
-cargo build --release
-```
+1. Clone the repository:
+
+  ```bash
+  git clone https://github.com/CSDotNET0211/fumen-rs.git
+  cd fumen-rs
+  ```
+
+2. Clone and build the Tetris npm package:
+
+  ```bash
+  git clone https://github.com/CSDotNET0211/tetris.git
+  cd tetris
+  npm install
+  npm run build
+  npm link
+  cd ..
+  ```
+
+3. Link the Tetris package to the project:
+
+  ```bash
+  npm link tetris
+  ```
+
+4. Build the Rust project:
+
+  ```bash
+  cargo build --release
+  ```
+
+This process ensures the project is properly set up for both npm and Rust-based integrations.
 
 ## Directory Structure
 
@@ -123,7 +148,7 @@ The following is an overview of the project's directory structure:
 - **src/routes/**: Window management.
 - **src/translations/**: Language translations.
 
-## for Developer
+## for Developers
 
 ### Adding Bot DLLs
 
