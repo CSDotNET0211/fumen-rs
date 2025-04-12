@@ -9,3 +9,8 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 src-tauri/imageGenerated/
+src-tauri/
+.vscode
+.idea
+/todo
+package-lock.json

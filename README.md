@@ -103,42 +103,6 @@ assets\images
 
 After replacing the images, restart the application to apply the changes.
 
-## Build Instructions
-
-To build the project, ensure you have Rust installed. Additionally, register the Tetris-related npm package locally before proceeding with the Rust build. Follow these steps:
-
-1. Clone the repository:
-
-  ```bash
-  git clone https://github.com/CSDotNET0211/fumen-rs.git
-  cd fumen-rs
-  ```
-
-2. Clone and build the Tetris npm package:
-
-  ```bash
-  git clone https://github.com/CSDotNET0211/tetris.git
-  cd tetris
-  npm install
-  npm run build
-  npm link
-  cd ..
-  ```
-
-3. Link the Tetris package to the project:
-
-  ```bash
-  npm link tetris
-  ```
-
-4. Build the Rust project:
-
-  ```bash
-  cargo build --release
-  ```
-
-This process ensures the project is properly set up for both npm and Rust-based integrations.
-
 ## Directory Structure
 
 The following is an overview of the project's directory structure:
