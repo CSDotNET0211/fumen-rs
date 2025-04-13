@@ -1,101 +1,96 @@
 import { boardViewContent, BoardViewContentType } from "../../store";
-import { executeCommand } from "../../utils/commands";
-import { BaseShortcut } from "../../utils/shortcuts";
+import { commands } from "../../utils/commands";
+import { Shortcut, shortcuts } from "../../utils/shortcuts";
 
-export class UndoShortcut extends BaseShortcut {
-	name = "undoShortcut";
-	key = "z";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.undo");
-	}
+export function registerShortcuts() {
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.undo",
+			"z",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.undo");
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.redo",
+			"y",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.redo");
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.play",
+			"F5",
+			false,
+			false,
+			false,
+			() => {
+				boardViewContent.set(BoardViewContentType.TetrisPlay);
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.edit",
+			"F5",
+			false,
+			true,
+			false,
+			() => {
+				boardViewContent.set(BoardViewContentType.TetrisEdit);
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.paste",
+			"v",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.paste");
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.new",
+			"n",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.new", true);
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.open",
+			"o",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.open");
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.save",
+			"s",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.save");
+			}));
+
+	shortcuts.register(
+		new Shortcut("fumen.shortcut.copy-as-fumen",
+			"c",
+			true,
+			false,
+			false,
+			() => {
+				commands.executeCommand("fumen.copy-as-fumen");
+			}));
 }
 
-export class RedoShortcut extends BaseShortcut {
-	name = "redoShortcut";
-	key = "y";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.redo");
-	}
-}
-export class PlayShortcut extends BaseShortcut {
-	name = "playShortcut";
-	key = "F5";
-	ctrl = false;
-	shift = false;
-	alt = false;
-	callback(): void {
-		boardViewContent.set(BoardViewContentType.TetrisPlay);
-	}
-}
-
-export class EditShortcut extends BaseShortcut {
-	name = "editShortcut";
-	key = "F5";
-	ctrl = false;
-	shift = true;
-	alt = false;
-	callback(): void {
-		boardViewContent.set(BoardViewContentType.TetrisEdit);
-	}
-}
-
-export class PasteShortcut extends BaseShortcut {
-	name = "pasteShortcut";
-	key = "v";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.paste");
-	}
-}
-
-export class NewShortcut extends BaseShortcut {
-	name = "newShortcut";
-	key = "n";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.new", true);
-	}
-}
-
-export class OpenShortcut extends BaseShortcut {
-	name = "openShortcut";
-	key = "o";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.open");
-	}
-}
-
-export class SaveShortcut extends BaseShortcut {
-	name = "saveShortcut";
-	key = "s";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.save");
-	}
-}
-
-export class CopyAsFumenShortcut extends BaseShortcut {
-	name = "copyAsFumenShortcut";
-	key = "c";
-	ctrl = true;
-	shift = false;
-	alt = false;
-	callback(): void {
-		executeCommand("fumen.copy-as-fumen");
-	}
-}

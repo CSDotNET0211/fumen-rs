@@ -1,61 +1,53 @@
 import { writable, get } from 'svelte/store';
 
-export abstract class BaseCommand {
-	abstract name: string;
-	abstract execute(...args: any[]): void | Promise<void>;
+export interface ICommand {
+	id: string;
+	execute: (...args: any[]) => void | Promise<void>;
 }
 
-const commands = writable<Record<string, BaseCommand>>({});
+export class Command implements ICommand {
+	constructor(
+		public id: string,
+		public execute: (...args: any[]) => void | Promise<void>
+	) { }
+}
 
-function registerCommand(command: BaseCommand): void {
-	if (!(command instanceof BaseCommand)) {
-		throw new Error("Only instances of BaseCommand or its subclasses can be registered.");
+export interface ICommandRegistry {
+	registerCommand(command: ICommand): void;
+	unregisterCommand(name: string): void;
+	unregisterAllCommands(): void;
+	executeCommand(name: string, ...args: any[]): Promise<void>;
+}
+
+export const commands: ICommandRegistry = new class implements ICommandRegistry {
+	private _commands = writable<Record<string, ICommand>>({});
+
+	registerCommand(command: ICommand): void {
+		this._commands.update((cmds) => {
+			return { ...cmds, [command.id]: command };
+		});
 	}
-	commands.update((cmds) => {
-		return { ...cmds, [command.name]: command };
-	});
-}
 
-function unregisterCommand(name: string): void {
-	commands.update((cmds) => {
-		if (!cmds[name]) {
+	unregisterCommand(name: string): void {
+		this._commands.update((cmds) => {
+			if (!cmds[name]) {
+				throw new Error(`Command "${name}" is not registered.`);
+			}
+			const { [name]: _, ...rest } = cmds;
+			return rest;
+		});
+	}
+
+	unregisterAllCommands(): void {
+		this._commands.set({});
+	}
+
+	async executeCommand(name: string, ...args: any[]): Promise<void> {
+		const cmds = get(this._commands);
+		const command = cmds[name];
+		if (!command) {
 			throw new Error(`Command "${name}" is not registered.`);
 		}
-		const { [name]: _, ...rest } = cmds;
-		return rest;
-	});
-}
-
-function unregisterAllCommands(): void {
-	commands.set({});
-}
-
-async function executeCommand(name: string, ...args: any[]): Promise<void> {
-	const cmds = get(commands);
-	const command = cmds[name];
-	if (!command) {
-		throw new Error(`Command "${name}" is not registered.`);
+		await command.execute(...args);
 	}
-	await command.execute(...args);
-}
-
-async function loadCommands(): Promise<void> {
-	const context = import.meta.glob("../registry/commands/*.ts");
-	for (const path in context) {
-		const module = await context[path]();
-		for (const key in module as Record<string, any>) {
-			const CommandClass = (module as Record<string, any>)[key];
-
-			if (typeof CommandClass === "function" && CommandClass.prototype instanceof BaseCommand) {
-				registerCommand(new CommandClass());
-			}
-		}
-	}
-}
-
-export {
-	unregisterCommand,
-	unregisterAllCommands,
-	executeCommand,
-	loadCommands,
-};
+}();

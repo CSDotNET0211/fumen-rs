@@ -1,25 +1,59 @@
 import { writable, get } from 'svelte/store';
 
-export abstract class BaseShortcut {
-	abstract name: string;
-	abstract key: string;
-	abstract ctrl: boolean;
-	abstract shift: boolean;
-	abstract alt: boolean;
-	abstract callback(): void;
-
+// Define the IShortcut interface
+export interface IShortcut {
+	id: string;
+	key: string;
+	ctrl: boolean;
+	shift: boolean;
+	alt: boolean;
+	callback(): void;
 }
 
-class ShortcutRegistry {
+// Implement the Shortcut class
+export class Shortcut implements IShortcut {
+	constructor(
+		public id: string,
+		public key: string,
+		public ctrl: boolean,
+		public shift: boolean,
+		public alt: boolean,
+		public callback: () => void
+	) { }
+}
+
+// Define the IShortcutRegistry interface
+export interface IShortcutRegistry {
+	register(shortcut: IShortcut): void; // Changed to accept IShortcut
+	unregisterById(id: string): void;
+	unregisterByKey(combinedKey: string): void;
+	getKeyById(id: string): string | undefined;
+	getIdByKey(combinedKey: string): string | undefined;
+	clear(): void;
+	unregisterShortcutByKey(key: string, ctrl: boolean, shift: boolean, alt: boolean): void;
+	unregisterAllShortcuts(): void;
+	handleShortcut(event: KeyboardEvent): void; // Added here
+}
+
+// Modify ShortcutRegistry to implement IShortcutRegistry
+export const shortcuts = new class implements IShortcutRegistry {
+	private _shortcuts = writable<Record<string, { callback: () => void }>>({});
+
 	private idToKey = writable<Record<string, string>>({});
 	private keyToId = writable<Record<string, string>>({});
 
-	register(id: string, combinedKey: string): void {
-		this.unregisterById(id);
+	register(shortcut: IShortcut): void { // Changed to accept IShortcut
+		const combinedKey = `${shortcut.ctrl ? 'Ctrl+' : ''}${shortcut.shift ? 'Shift+' : ''}${shortcut.alt ? 'Alt+' : ''}${shortcut.key.toUpperCase()}`;
+		this.unregisterById(shortcut.id);
 		this.unregisterByKey(combinedKey);
 
-		this.idToKey.update((map) => ({ ...map, [id]: combinedKey }));
-		this.keyToId.update((map) => ({ ...map, [combinedKey]: id }));
+		this.idToKey.update((map) => ({ ...map, [shortcut.id]: combinedKey }));
+		this.keyToId.update((map) => ({ ...map, [combinedKey]: shortcut.id }));
+
+		this._shortcuts.update((sc) => ({
+			...sc,
+			[combinedKey]: { callback: shortcut.callback }
+		}));
 	}
 
 	unregisterById(id: string): void {
@@ -62,11 +96,33 @@ class ShortcutRegistry {
 		this.idToKey.update(() => ({}));
 		this.keyToId.update(() => ({}));
 	}
+
+	unregisterShortcutByKey(key: string, ctrl: boolean, shift: boolean, alt: boolean): void {
+		const combinedKey = `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key.toUpperCase()}`;
+		this.unregisterByKey(combinedKey);
+		this._shortcuts.update((sc) => {
+			const { [combinedKey]: _, ...rest } = sc;
+			return rest;
+		});
+	}
+
+	unregisterAllShortcuts(): void {
+		this._shortcuts.update(() => ({}));
+		this.clear();
+	}
+
+	handleShortcut(event: KeyboardEvent): void {
+		const combinedKey = `${event.ctrlKey ? 'Ctrl+' : ''}${event.shiftKey ? 'Shift+' : ''}${event.altKey ? 'Alt+' : ''}${event.key.toUpperCase()}`;
+		const sc = get(this._shortcuts);
+		const shortcut = sc[combinedKey];
+		if (shortcut) {
+			event.preventDefault();
+			shortcut.callback();
+		}
+	}
 }
 
-const shortcuts = writable<Record<string, { callback: () => void }>>({});
-const registry = new ShortcutRegistry();
-
+/*
 export async function loadShortcuts(): Promise<void> {
 	const context = import.meta.glob("../registry/shortcuts/*.ts");
 	for (const path in context) {
@@ -74,94 +130,10 @@ export async function loadShortcuts(): Promise<void> {
 		for (const key in module as Record<string, any>) {
 			const ShortcutClass = (module as Record<string, any>)[key];
 
-			if (typeof ShortcutClass === "function" && ShortcutClass.prototype instanceof BaseShortcut) {
+			if (typeof ShortcutClass === "function" && ShortcutClass.prototype instanceof Shortcut) {
 				registerShortcutWithId(new ShortcutClass());
 			}
 		}
 	}
 }
-
-function registerShortcut(
-	key: string,
-	ctrl: boolean,
-	shift: boolean,
-	alt: boolean,
-	callback: () => void
-): void {
-	const combinedKey = `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key.toUpperCase()}`;
-	shortcuts.update((sc) => {
-		return { ...sc, [combinedKey]: { callback } };
-	});
-}
-
-export function unregisterShortcut(key: string, ctrl: boolean, shift: boolean, alt: boolean): void {
-	const combinedKey = `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key.toUpperCase()}`;
-	shortcuts.update((sc) => {
-		if (!sc[combinedKey]) {
-			throw new Error(`Shortcut "${combinedKey}" is not registered.`);
-		}
-		const { [combinedKey]: _, ...rest } = sc;
-		return rest;
-	});
-}
-
-export function handleShortcut(event: KeyboardEvent): void {
-	const combinedKey = `${event.ctrlKey ? 'Ctrl+' : ''}${event.shiftKey ? 'Shift+' : ''}${event.altKey ? 'Alt+' : ''}${event.key.toUpperCase()}`;
-	const sc = get(shortcuts);
-	const shortcut = sc[combinedKey];
-	if (shortcut) {
-		event.preventDefault();
-		shortcut.callback();
-	}
-}
-
-function registerShortcutWithId(
-	shortcut: BaseShortcut
-): void {
-	const combinedKey = `${shortcut.ctrl ? 'Ctrl+' : ''}${shortcut.shift ? 'Shift+' : ''}${shortcut.alt ? 'Alt+' : ''}${shortcut.key.toUpperCase()}`;
-
-	registry.register(shortcut.name, combinedKey);
-	registerShortcut(shortcut.key, shortcut.ctrl, shortcut.shift, shortcut.alt, shortcut.callback);
-}
-
-export function unregisterShortcutById(id: string): void {
-	const combinedKey = registry.getKeyById(id);
-	if (combinedKey) {
-		unregisterShortcut(combinedKey, false, false, false);
-	}
-	registry.unregisterById(id);
-}
-
-export function unregisterShortcutByKey(
-	key: string,
-	ctrl: boolean,
-	shift: boolean,
-	alt: boolean
-): void {
-	const combinedKey = `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key.toUpperCase()}`;
-	registry.unregisterByKey(combinedKey);
-	unregisterShortcut(key, ctrl, shift, alt);
-}
-
-export function getKeyById(id: string): string | undefined {
-	return registry.getKeyById(id);
-}
-
-export function getIdByKey(key: string): string | undefined {
-	return registry.getIdByKey(key);
-}
-
-export function registerKeyById(
-	shortcut: BaseShortcut,
-): void {
-	const existingKey = getKeyById(shortcut.name);
-	if (existingKey) {
-		unregisterShortcut(existingKey, shortcut.ctrl, shortcut.shift, shortcut.alt);
-	}
-	registerShortcutWithId(shortcut);
-}
-
-export function unregisterAllShortcuts(): void {
-	shortcuts.update(() => ({}));
-	registry.clear();
-}
+*/
