@@ -1,4 +1,4 @@
-import { TetrisEnv } from "tetris";
+import { TetrisEnv } from "tetris/src/tetris_env";
 import { boardViewContent, BoardViewContentType, fieldIndex, fields, history, overlayBoardViewContent, OverrideBoardViewContentType } from "../../store.ts";
 import { commands, Command } from "../../utils/commands.ts";
 import { History } from "../../history.ts";

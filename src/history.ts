@@ -1,5 +1,5 @@
 import { get } from "svelte/store";
-import type { TetrisEnv } from "tetris";
+import type { TetrisEnv } from "tetris/src/tetris_env";
 import { fieldIndex, fields } from "./store";
 
 const HISTORY_LIMIT = 40;

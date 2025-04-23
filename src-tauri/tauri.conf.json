@@ -33,7 +33,7 @@
         "resizable": false,
         "maximizable": false,
         "devtools": true,
-        "visible": false
+        "visible": true
       }
     ],
     "security": {

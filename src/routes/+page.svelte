@@ -16,7 +16,7 @@
     OverrideBoardViewContentType,
     teachableMachineModel,
   } from "../store.ts";
-  import { TetrisEnv } from "tetris";
+  import { TetrisEnv } from "tetris/src/tetris_env";
   import {
     BaseDirectory,
     exists,
@@ -86,13 +86,6 @@
     window.addEventListener("keydown", handleShortcutInternal);
     window.addEventListener("mouseup", handleMouseButton);
 
-    /*const tetrisEdit = (
-			await import(`../components/field/tetrisEdit.svelte`)
-		).default;
-		const tetrisPlay = (
-			await import(`../components/field/tetrisPlay.svelte`)
-		).default;*/
-
     fieldComponents.set(
       new Map([
         [BoardViewContentType.TetrisEdit, TetrisEdit],
@@ -100,23 +93,6 @@
       ])
     );
     currentFieldComponent = TetrisEdit;
-    /*
- 
-		const tetrominoSelect = (
-			await import(`../components/fields/tetrominoSelect.svelte`)
-		).default;
-		const fumenImportPanel = (
-			await import(`../components/fields/fumenImportPanel.svelte`)
-		).default;
-		const preferences = (
-			await import(`../components/fields/preferences.svelte`)
-		).default;
-		const gifExportPanel = (
-			await import(`../components/fields/gifExportPanel.svelte`)
-		).default;
-		const imageImportPanel = (
-			await import(`../components/fields/imageImportPanel.svelte`)
-		).default;*/
 
     overlayComponents.set(
       new Map<OverrideBoardViewContentType, any>([
@@ -214,7 +190,7 @@
           new StoreMenuItem(
             MenuItemType.Normal,
             $t("common.menu-new"),
-            shortcuts.getKeyById("newShortcut") ?? "",
+            shortcuts.getKeyById("fumen.shortcut.new") ?? "",
             () => {
               commands.executeCommand("fumen.new", true);
             }
@@ -222,7 +198,7 @@
           new StoreMenuItem(
             MenuItemType.Normal,
             $t("common.menu-open") + "...",
-            shortcuts.getKeyById("openShortcut") ?? "",
+            shortcuts.getKeyById("fumen.shortcut.open") ?? "",
             () => {
               commands.executeCommand("fumen.open");
             }
@@ -230,7 +206,7 @@
           new StoreMenuItem(
             MenuItemType.Normal,
             $t("common.menu-save") + "...",
-            shortcuts.getKeyById("saveShortcut") ?? "",
+            shortcuts.getKeyById("fumen.shortcut.save") ?? "",
             () => {
               commands.executeCommand("fumen.save");
             }
@@ -302,7 +278,7 @@
           new StoreMenuItem(
             MenuItemType.Normal,
             $t("common.menu-paste"),
-            shortcuts.getKeyById("pasteShortcut") ?? "",
+            shortcuts.getKeyById("fumen.shortcut.paste") ?? "",
             () => {
               commands.executeCommand("fumen.paste");
             }
@@ -328,13 +304,13 @@
           new StoreMenuItem(
             MenuItemType.Normal,
             $t("common.menu-start"),
-            shortcuts.getKeyById("playShortcut") ?? "",
+            shortcuts.getKeyById("fumen.shortcut.play") ?? "",
             () => boardViewContent.set(BoardViewContentType.TetrisPlay)
           ),
           new StoreMenuItem(
             MenuItemType.Normal,
             $t("common.menu-stop"),
-            shortcuts.getKeyById("editShortcut") ?? "",
+            shortcuts.getKeyById("fumen.shortcut.edit") ?? "",
             () => boardViewContent.set(BoardViewContentType.TetrisEdit)
           ),
         ]

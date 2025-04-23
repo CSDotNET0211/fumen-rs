@@ -8,11 +8,11 @@
     Sprite,
     Texture,
   } from "pixi.js";
-  import { HEIGHT, WIDTH } from "tetris";
   import { Tetromino } from "tetris/src/tetromino";
   import { resolveResource } from "@tauri-apps/api/path";
   import { convertFileSrc } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
+  import { TetrisEnv } from "tetris/src/tetris_env";
 
   export const CELL_SIZE = 31;
 
@@ -152,9 +152,9 @@
     ghosts: boolean[] | undefined,
     override: number[] | undefined
   ) {
-    for (let y = 0; y < HEIGHT; y++) {
-      for (let x = 0; x < WIDTH; x++) {
-        let pos = x + y * WIDTH;
+    for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
+      for (let x = 0; x < TetrisEnv.WIDTH; x++) {
+        let pos = x + y * TetrisEnv.WIDTH;
 
         if (board) {
           if (boardSprites[pos] == null) return;
@@ -214,15 +214,15 @@
     board_container: Container,
     board_sprites: CellSprite[]
   ) {
-    for (let y = 0; y < HEIGHT; y++) {
-      for (let x = 0; x < WIDTH; x++) {
+    for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
+      for (let x = 0; x < TetrisEnv.WIDTH; x++) {
         let cell = new Sprite(Texture.EMPTY) as CellSprite;
         board_sprites.push(cell);
         cell.width = 30;
         cell.height = 30;
         cell.x = x * CELL_SIZE + 1;
         cell.y = y * CELL_SIZE;
-        cell.pos = x + y * WIDTH;
+        cell.pos = x + y * TetrisEnv.WIDTH;
         cell.eventMode = "static";
 
         board_container.addChild(cell);
@@ -236,8 +236,8 @@
   ) {
     await app.init({
       backgroundAlpha: 0,
-      width: CELL_SIZE * WIDTH,
-      height: CELL_SIZE * HEIGHT,
+      width: CELL_SIZE * TetrisEnv.WIDTH,
+      height: CELL_SIZE * TetrisEnv.HEIGHT,
     });
 
     canvasParent.appendChild(app.canvas);

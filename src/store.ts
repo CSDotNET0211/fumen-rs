@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import type { TetrisEnv } from 'tetris';
+import type { TetrisEnv } from 'tetris/src/tetris_env';
 import { History } from './history';
 import { GameConfig } from './gameConfig';
 import type { TeachableMachine } from './teachableMachine';
