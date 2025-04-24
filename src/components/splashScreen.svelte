@@ -19,7 +19,7 @@
     <img
       src="128x128.png"
       alt="App Logo"
-      style="width: 150px; height: auto; margin-bottom: 20px;"
+      style="width: 8em; height: auto; margin-bottom: 1em;"
     />
     <h1 data-tauri-drag-region style="font-size: 2.5em; margin: 0;">
       fumen-rs
@@ -38,7 +38,7 @@
     </p>
     <p
       data-tauri-drag-region
-      style="margin-top: 20px; font-size: 0.9em; color: #aaa;"
+      style="margin-top: 1em; font-size: 0.9em; color: #aaa;"
     >
       {statusText}
     </p>
@@ -46,7 +46,7 @@
       <!-- svelte-ignore a11y_invalid_attribute -->
       <a
         href="#"
-        style="display: block; margin-top: 10px; font-size: 0.8em; color: #00aaff; text-decoration: underline;"
+        style="display: block; margin-top: 1em; font-size: 0.8em; color: #00aaff; text-decoration: underline;"
         on:click={async () => {
           await invoke("delete_config_file_if_available");
           await relaunch();

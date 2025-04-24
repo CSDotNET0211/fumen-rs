@@ -2,5 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    unsafe {
+        winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
+    }
     fumen_lib::run()
 }
