@@ -19,7 +19,11 @@
   import { DIFFS, SHAPES } from "tetris/src/constants.ts";
   import { TetrisConfig } from "tetris/src/config.ts";
   import { emitTo, listen } from "@tauri-apps/api/event";
-  import { mount, tetrisBoardApp, unmount } from "./tetrisBoard.svelte";
+  import TetrisBoard, {
+    mount,
+    tetrisBoardApp,
+    unmount,
+  } from "./tetrisBoard.svelte";
   import type { GameConfig } from "../../gameConfig.ts";
   import type { History } from "../../history.ts";
   import { t } from "../../translations/translations.ts";
@@ -365,12 +369,4 @@
   }
 </script>
 
-<div id="canvas"></div>
-
-<style>
-  #canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-</style>
+<TetrisBoard />

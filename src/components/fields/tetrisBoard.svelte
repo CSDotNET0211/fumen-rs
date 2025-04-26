@@ -364,13 +364,38 @@
   }
 </script>
 
-<div id="canvas"></div>
+<div id="canvas-container">
+  <div id="canvas"></div>
+</div>
+
 <div id="offscreenCanvas" style="display: none;"></div>
 
 <style>
-  #canvas {
+  #canvas-container {
     width: 100%;
     height: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  #canvas {
     display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    flex-shrink: 0;
+  }
+
+  :global(#canvas > canvas) {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: var(--aspect-ratio, 310/713);
+    /* contain風を強調したい場合はmax指定 */
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 </style>

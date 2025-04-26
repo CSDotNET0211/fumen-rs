@@ -180,6 +180,7 @@ export function registerCommands() {
 	commands.registerCommand(
 		new Command("fumen.undo", async () => {
 			let currentHistoryObj = null;
+
 			history.update((history: History) => {
 				if (
 					history.historyIndex !== undefined &&

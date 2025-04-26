@@ -4,9 +4,12 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, OnceLock};
 use std::vec;
 use sys_locale::get_locale;
+use tauri::{LogicalSize, Size, Window};
+
+static before_window_size: OnceLock<(u32, u32)> = OnceLock::new();
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -93,6 +96,71 @@ unsafe fn load_library(bot_name: &str) -> Result<Arc<Mutex<Library>>, String> {
             Ok(new_lib_arc)
         }
     }
+}
+#[tauri::command]
+fn initialize_window(window: Window) {
+    let current_size = window.outer_size().unwrap();
+    before_window_size
+        .set((current_size.width, current_size.height))
+        .ok();
+}
+
+#[tauri::command]
+fn adjust_window_size(window: Window) {
+    let current_size = window.outer_size().unwrap();
+    let scale_factor = window.scale_factor().unwrap();
+
+    // 初回のみサイズを保存
+    let (old_width, old_height) = before_window_size.get().unwrap();
+
+    let new_width = current_size.width as f64;
+    let new_height = current_size.height as f64;
+    let old_width = *old_width as f64;
+    let old_height = *old_height as f64;
+    let aspect = old_width / old_height;
+
+    // 幅と高さ、どちらが多く変わったかで判断
+    let (final_width, final_height) =
+        if (new_width - old_width).abs() > (new_height - old_height).abs() {
+            // 幅がメインで変化した → 高さを補正
+            let height = new_width / aspect;
+            (new_width, height)
+        } else {
+            // 高さがメインで変化した → 幅を補正
+            let width = new_height * aspect;
+            (width, new_height)
+        };
+
+    window
+        .set_size(Size::Logical(LogicalSize {
+            width: final_width / scale_factor,
+            height: final_height / scale_factor,
+        }))
+        .unwrap();
+
+    before_window_size
+        .set((final_width as u32, final_height as u32))
+        .ok();
+}
+
+#[tauri::command]
+fn set_window_size(window: Window, width: f64, height: f64) {
+    let scale_factor = window.scale_factor().unwrap();
+    window
+        .set_size(Size::Logical(LogicalSize {
+            width: width / scale_factor,
+            height: height / scale_factor,
+        }))
+        .unwrap();
+}
+
+#[tauri::command]
+fn get_window_size(window: Window) -> (u32, u32) {
+    let current_size = window.outer_size().unwrap();
+    // let scale_factor = window.scale_factor().unwrap();
+    let width = (current_size.width) as u32;
+    let height = (current_size.height) as u32;
+    (width, height)
 }
 
 #[tauri::command]
@@ -189,7 +257,11 @@ pub fn run() {
             get_redirect_url,
             get_language,
             delete_config_file_if_available,
-            reveal_config_file_in_explorer
+            reveal_config_file_in_explorer,
+            adjust_window_size,
+            initialize_window,
+            set_window_size,
+            get_window_size
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -132,7 +132,7 @@
 
     await initializePixijs(
       app,
-      document.getElementById("canvasParent") as HTMLCanvasElement
+      document.getElementById("canvas") as HTMLCanvasElement
     );
 
     const canvasWidth = app.canvas.width;
@@ -349,7 +349,7 @@
   onmousedown={(e) => e.stopPropagation()}
   onmouseout={(e) => e.stopPropagation()}
 >
-  <div id="canvasParent" tabindex="-1"></div>
+  <div id="canvas" tabindex="-1"></div>
 
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="import-panel">
@@ -417,10 +417,7 @@
     pointer-events: all;
   }
 
-  #canvasParent {
-    position: absolute;
-    top: 0;
-    left: 0;
+  #canvas {
     width: 100%;
     height: 100%;
   }

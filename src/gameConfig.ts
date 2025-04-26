@@ -19,6 +19,7 @@ export class GameConfig {
 	bgBorderOpacity!: number | null;
 	language!: string | null;
 	ghostPiece!: boolean | null;
+	windowSize!: { width: number; height: number } | undefined;
 
 	constructor() {
 		this.keymaps = new Map<string, Record<string, KeymapEntry>>();
@@ -63,6 +64,7 @@ export class GameConfig {
 		obj.bgBorderOpacity = 0.8;
 		obj.language = "en";
 		obj.ghostPiece = true;
+		obj.windowSize = undefined;
 
 		return obj;
 	}
@@ -84,7 +86,8 @@ export class GameConfig {
 			language: this.language,
 			fumenImageRecognitionModelURL: this.fumenImageRecognitionModelURL,
 			bgBorderOpacity: this.bgBorderOpacity,
-			ghostPiece: this.ghostPiece
+			ghostPiece: this.ghostPiece,
+			windowSize: this.windowSize,
 		});
 	}
 
@@ -103,6 +106,7 @@ export class GameConfig {
 		obj.fumenImageRecognitionModelURL = data.fumenImageRecognitionModelURL;
 		obj.bgBorderOpacity = data.bgBorderOpacity;
 		obj.ghostPiece = data.ghostPiece;
+		obj.windowSize = data.windowSize;
 
 		return obj;
 	}

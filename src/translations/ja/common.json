@@ -69,5 +69,6 @@
 	"preferences-reset-button": "デフォルトにリセット",
 	"preferences-ghost-piece": "ゴースト",
 	"preferences-open-folder": "フォルダを開く",
-	"preferences-reset-success": "リセットしました。"
+	"preferences-reset-success": "リセットしました。",
+	"preferences-reset-window-status": "ウィンドウ情報をリセット"
 }

@@ -69,5 +69,6 @@
 	"preferences-reset-button": "Reset to Default",
 	"preferences-ghost-piece": "Ghost Piece",
 	"preferences-open-folder": "Open Folder",
-	"preferences-reset-success": "Reset successfully!"
+	"preferences-reset-success": "Reset successfully!",
+	"preferences-reset-window-status": "Reset Window Status"
 }

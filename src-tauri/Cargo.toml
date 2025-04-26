@@ -1,6 +1,6 @@
 [package]
 name = "fumen"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Tauri App"
 authors = ["CSDotNET"]
 edition = "2021"

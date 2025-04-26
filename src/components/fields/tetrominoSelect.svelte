@@ -211,6 +211,8 @@
     justify-content: center;
     width: 100%;
     flex-wrap: wrap;
+    max-width: 320px; /* 3 rows x 100px + 2*10px margin */
+    overflow-y: auto;
   }
 
   #image-container > button {
@@ -219,6 +221,7 @@
     box-sizing: border-box;
     width: 100px;
     height: 100px;
+    margin: 0;
   }
 
   #image-container img {
@@ -248,6 +251,20 @@
   #container input {
     width: 70%;
     margin: 15px;
+  }
+
+  #image-container::-webkit-scrollbar {
+    width: 5px;
+  }
+  #image-container::-webkit-scrollbar-track {
+    background: #1c1c1c;
+  }
+  #image-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  #image-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
   }
 
   * {

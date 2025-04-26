@@ -47,6 +47,10 @@
   import ImageImportPanel from "../components/fields/imageImportPanel.svelte";
   import { commands } from "../utils/commands.ts";
   import { registerShortcuts } from "../registry/shortcuts/builtinShortcuts.ts";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+  import { invoke } from "@tauri-apps/api/core";
+  import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+  import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
   // グローバル変数
   let rightComponents: Writable<any[]>;
@@ -61,6 +65,9 @@
   let overlayComponents: Writable<Map<OverrideBoardViewContentType, any>>;
   let currentOverrideComponent: any;
 
+  let unlistenResize: UnlistenFn;
+  let resized: boolean = false;
+
   fieldComponents = writable(new Map());
   overlayComponents = writable(new Map());
 
@@ -71,7 +78,32 @@
   });
 
   onMount(async () => {
+    unlistenResize = await listen<string>("tauri://resize", async (event) => {
+      resized = true;
+
+      const size = (await invoke("get_window_size")) as any;
+      gameConfig.update((config) => {
+        if (config) {
+          config.windowSize = {
+            width: size[0],
+            height: size[1],
+          };
+        }
+        return config;
+      });
+    });
+
     await promise;
+
+    if (get(gameConfig)?.windowSize != undefined) {
+      invoke("set_window_size", {
+        window: getCurrentWindow(),
+        width: get(gameConfig)?.windowSize?.width,
+        height: get(gameConfig)?.windowSize?.height,
+      });
+    }
+
+    invoke("initialize_window");
 
     console.log($t("common.console-warning"), "color: red; font-size: 2em;");
 
@@ -130,6 +162,7 @@
     window.removeEventListener("keydown", handleShortcutInternal);
     window.removeEventListener("contextmenu", handleContextMenu);
     window.removeEventListener("mouseup", handleMouseButton);
+    unlistenResize();
   });
 
   async function initializeInSplash() {
@@ -371,13 +404,29 @@
     event.preventDefault();
   }
 
-  function handleMouseButton(event: MouseEvent) {
-    if (event.button === 3) {
+  async function handleMouseButton(event: MouseEvent) {
+    if (event.button === 0) {
+      /* if (resized) {
+        const size = (await invoke("get_window_size")) as any;
+        console.log(size);
+        gameConfig.update((config) => {
+          if (config) {
+            config.windowSize = {
+              width: size.width,
+              height: size.height,
+            };
+          }
+          return config;
+        });
+        resized = false;
+      }*/
+    } else if (event.button === 3) {
       commands.executeCommand("fumen.undo");
+      event.preventDefault();
     } else if (event.button === 4) {
       commands.executeCommand("fumen.redo");
+      event.preventDefault();
     }
-    event.preventDefault();
   }
 
   $: {
@@ -411,7 +460,10 @@
           {/each}
         </div>
 
-        <div style="flex:1;position:relative;" id="main_panel">
+        <div
+          style="width:calc(100% - 110px - 110px);position:relative;"
+          id="main_panel"
+        >
           <!-- Board Override -->
           {#if currentOverrideComponent}
             <svelte:component
@@ -456,6 +508,21 @@
     background-color: #2f2f2f;
     width: 110px;
     border-left: 1px solid #3e3e3e;
+    overflow-y: auto;
+  }
+
+  .side_panel::-webkit-scrollbar {
+    width: 5px;
+  }
+  .side_panel::-webkit-scrollbar-track {
+    background: #1c1c1c;
+  }
+  .side_panel::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  .side_panel::-webkit-scrollbar-thumb:hover {
+    background: #555;
   }
 
   :root {
