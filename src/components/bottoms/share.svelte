@@ -243,7 +243,7 @@
       userName.length > 12
     ) {
       alert(
-        "Room Name and Username must be non-empty and less than 12 characters."
+        "Roomname and Username must be non-empty and less than 12 characters."
       );
       return;
     }
@@ -360,7 +360,7 @@
       </button>
     {:else if $players.size === 0}
       <div class="connected-info">
-        <p>Socket ID: {socketId}</p>
+        <p>Server: {get(gameConfig)?.socketAddress}</p>
         <input
           type="text"
           placeholder="Enter Room Name"
@@ -430,7 +430,7 @@
   }
 
   #main-panel {
-    color: #cbcbcb;
+    color: #d6f6f6;
     position: fixed;
     bottom: 0;
     left: 0;
@@ -494,7 +494,7 @@
   .room-input {
     width: calc(100% - 20px);
     padding: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 3px;
     border: 1px solid #ccc;
     border-radius: 4px;
   }
@@ -502,7 +502,7 @@
   .username-input {
     width: calc(100% - 20px);
     padding: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     border: 1px solid #ccc;
     border-radius: 4px;
   }
@@ -511,10 +511,11 @@
     width: 100%;
     padding: 8px;
     background-color: #28a745;
-    color: #cbcbcb;
+    color: #fff;
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    margin-bottom: 3px;
   }
 
   .join-button:hover {
@@ -531,7 +532,7 @@
     width: 100%;
     padding: 8px;
     background-color: #dc3545;
-    color: #cbcbcb;
+    color: #fff;
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -545,7 +546,7 @@
     width: 100%;
     padding: 8px;
     background-color: #6c757d;
-    color: #cbcbcb;
+    color: #d6f6f6;
     border: none;
     border-radius: 4px;
     cursor: pointer;

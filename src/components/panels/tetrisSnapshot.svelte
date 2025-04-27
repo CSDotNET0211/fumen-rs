@@ -2,7 +2,13 @@
   import { get, writable } from "svelte/store";
   import Panel from "../panel.svelte";
   import type { TetrisEnv } from "tetris/src/tetris_env";
-  import { fieldIndex, fields, history } from "../../store";
+  import {
+    fieldIndex,
+    fields,
+    history,
+    snapshot,
+    SnapshotData,
+  } from "../../store";
   import { getCanvasImage } from "../fields/tetrisBoard.svelte";
   import type { History } from "../../history";
   import { t } from "../../translations/translations";
@@ -10,19 +16,6 @@
 
   export const selected_mino = writable();
 
-  class SnapshotData {
-    env: TetrisEnv;
-    thumbnail: string;
-    title: string;
-
-    constructor(env: TetrisEnv, thumbnail: string, title: string) {
-      this.env = env;
-      this.thumbnail = thumbnail;
-      this.title = title;
-    }
-  }
-
-  let snapshot = writable<SnapshotData[]>([]);
   let selectedSnapshotIndex = writable<number | null>(null);
   let editingIndex = writable<number | null>(null);
 
@@ -45,7 +38,7 @@
   }
 
   async function handleAddClick() {
-    let env = get(fields)[get(fieldIndex)];
+    let env = get(fields)[get(fieldIndex)].clone();
     let thumbnail = await getCanvasImage();
     let title = "Snapshot " + (get(snapshot).length + 1);
 

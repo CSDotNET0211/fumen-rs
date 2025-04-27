@@ -61,6 +61,21 @@ export class MenuItem {
 	}
 }
 
+
+export class SnapshotData {
+	env: TetrisEnv;
+	thumbnail: string;
+	title: string;
+
+	constructor(env: TetrisEnv, thumbnail: string, title: string) {
+		this.env = env;
+		this.thumbnail = thumbnail;
+		this.title = title;
+	}
+}
+
+
+
 //TetrisかPuyo
 export const gameMode = writable<GameModeType>(GameModeType.Tetris);
 //表示するメニューの項目
@@ -84,5 +99,7 @@ export const autoFillQueue = writable<boolean>(false);
 export const autoApplyField = writable<boolean>(true);
 export const openedNotificationPanel = writable<string | null>(null);
 export const teachableMachineModel = writable<TeachableMachine | null>(null);
+export const snapshot = writable<SnapshotData[]>([]);
+
 //任意の変数を登録します
 const globalState = writable<Record<string, any>>({});

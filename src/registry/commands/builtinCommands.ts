@@ -1,5 +1,5 @@
 import { TetrisEnv } from "tetris/src/tetris_env";
-import { boardViewContent, BoardViewContentType, fieldIndex, fields, history, overlayBoardViewContent, OverrideBoardViewContentType } from "../../store.ts";
+import { boardViewContent, BoardViewContentType, fieldIndex, fields, history, overlayBoardViewContent, OverrideBoardViewContentType, snapshot } from "../../store.ts";
 import { commands, Command } from "../../utils/commands.ts";
 import { History } from "../../history.ts";
 import { get } from "svelte/store";
@@ -68,7 +68,7 @@ export function registerCommands() {
 				return history;
 			});
 			boardViewContent.set(BoardViewContentType.TetrisEdit);
-
+			snapshot.set([]);
 		}));
 
 	commands.registerCommand(

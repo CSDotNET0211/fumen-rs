@@ -13,6 +13,7 @@
   import { openPath } from "@tauri-apps/plugin-opener";
   import { Command } from "@tauri-apps/plugin-shell";
   import { invoke } from "@tauri-apps/api/core";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
 
   let editingKey = writable<string | null>(null);
   let selectedKeymap = writable<string>("TetrisPlay");
@@ -131,6 +132,12 @@
       }
 
       return config;
+    });
+
+    invoke("set_window_size", {
+      window: getCurrentWindow(),
+      width: 532,
+      height: 770,
     });
   }
 </script>
