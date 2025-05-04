@@ -100,6 +100,8 @@ export const autoApplyField = writable<boolean>(true);
 export const openedNotificationPanel = writable<string | null>(null);
 export const teachableMachineModel = writable<TeachableMachine | null>(null);
 export const snapshot = writable<SnapshotData[]>([]);
+//ショートカットとプレイのキーコンがかぶった際の対処
+export const shortcutTriggered = writable(false);
 
 //任意の変数を登録します
 const globalState = writable<Record<string, any>>({});

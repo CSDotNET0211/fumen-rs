@@ -27,6 +27,7 @@
   import type { GameConfig } from "../../gameConfig.ts";
   import type { History } from "../../history.ts";
   import { t } from "../../translations/translations.ts";
+  import { shortcuts } from "../../utils/shortcuts.ts";
 
   let current_frame: number;
   let env: TetrisEnv | null = null;
@@ -56,6 +57,12 @@
 
   function handleKeyDown(event: KeyboardEvent) {
     if (event.repeat) return;
+
+    const key = `${event.ctrlKey ? "Ctrl+" : ""}${event.shiftKey ? "Shift+" : ""}${event.altKey ? "Alt+" : ""}${event.key.toUpperCase()}`;
+    const id = shortcuts.getIdByKey(key);
+    if (id != undefined) {
+      return;
+    }
 
     switch (event.code) {
       case gameConfigObj.keymaps?.get("TetrisPlay")?.["Right"].key:
