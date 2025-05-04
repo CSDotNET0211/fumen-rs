@@ -132,7 +132,7 @@
 
     await initializePixijs(
       app,
-      document.getElementById("canvas") as HTMLCanvasElement
+      document.getElementById("canvas-import-image") as HTMLCanvasElement
     );
 
     const canvasWidth = app.canvas.width;
@@ -349,7 +349,7 @@
   onmousedown={(e) => e.stopPropagation()}
   onmouseout={(e) => e.stopPropagation()}
 >
-  <div id="canvas" tabindex="-1"></div>
+  <div id="canvas-import-image" tabindex="-1"></div>
 
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div class="import-panel">
@@ -417,12 +417,15 @@
     pointer-events: all;
   }
 
-  #canvas {
+  #canvas-import-image {
     width: 100%;
     height: 100%;
   }
 
   .import-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
     height: 100%;
     width: 100%;
     border-radius: 10px;
@@ -431,6 +434,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    pointer-events: none;
   }
 
   button {
