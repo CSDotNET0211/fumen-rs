@@ -5,6 +5,7 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { Rectangle } from "pixi.js";
   import { convertFileSrc } from "@tauri-apps/api/core";
+  import GMeans from "g-means";
 
   Chart.register(...registerables);
 
@@ -66,7 +67,12 @@
       const saturationCounts = Array(100).fill(0);
       const valueCounts = Array(360).fill(0);
 
-      // 各チャンクごとにピクセルを走査し、HSV値をカウント
+      //チャンクごとに平均の色を出して、
+      // h(sin)・sの2次元のデータをセットで作り、分類する
+      //分類されたやつグループごとに平均を出し、nnでゲームを推論
+
+      const hsPairs = []; // hとsをまとめた配列を格納する配列
+
       for (const chunk of chunks) {
         const chunkData = ImageProcessor.getImageDataFromChunk(
           imageData,
@@ -85,17 +91,45 @@
           chunkCanvas.height
         );
 
+        let totalR = 0,
+          totalG = 0,
+          totalB = 0,
+          pixelCount = 0;
+
         for (let i = 0; i < chunkImageData.data.length; i += 4) {
           const r = chunkImageData.data[i];
           const g = chunkImageData.data[i + 1];
           const b = chunkImageData.data[i + 2];
+          totalR += r;
+          totalG += g;
+          totalB += b;
+          pixelCount++;
+        }
+
+        if (pixelCount > 0) {
+          const avgR = totalR / pixelCount;
+          const avgG = totalG / pixelCount;
+          const avgB = totalB / pixelCount;
+
           // RGBからHSVに変換
-          const { h, s, v } = ImageProcessor.convertToHsv(r, g, b);
-          hueCounts[Math.floor(h)]++;
-          saturationCounts[Math.floor(s)]++;
-          valueCounts[Math.floor(v)]++;
+          const { h, s, v } = ImageProcessor.convertToHsv(avgR, avgG, avgB);
+
+          // hとsを配列としてまとめて配列に追加
+          hsPairs.push([h, s]);
+
+          // hをsinに変換して新しい配列に格納
+          const hSin = Math.sin((h * Math.PI) / 180); // hをラジアンに変換してsinを計算
+          hueCounts.push(hSin);
+          saturationCounts.push(s);
+          valueCounts.push(v);
         }
       }
+
+      console.log("HS Pairs:", hsPairs); // 確認用
+      const gmeans = new GMeans();
+      gmeans.fit(hsPairs);
+      console.log("予測");
+      console.log(gmeans.predict(hsPairs));
 
       // データを圧縮（チャート描画用にまとめる）
       const compressedHueCounts = compressData(

@@ -24,6 +24,8 @@
     "core:window:allow-minimize",
     "dialog:allow-open",
     "dialog:default",
-    "process:default"
+    "process:default",
+    "core:window:allow-set-min-size",
+    "core:window:allow-set-size"
   ]
 }

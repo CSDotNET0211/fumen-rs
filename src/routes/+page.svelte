@@ -91,6 +91,21 @@
         }
         return config;
       });
+      /*
+      const ASPECT_RATIO = 10 / 23;
+
+      const currentSize = await getCurrentWindow().outerSize();
+      const scaleFactor = await getCurrentWindow().scaleFactor();
+
+      let idealWidth = currentSize.height * scaleFactor * ASPECT_RATIO;
+      let newMinSize = new LogicalSize({
+        width: currentSize.height * scaleFactor * (1 / 2),
+        height: 400 * scaleFactor,
+      });
+
+      getCurrentWindow().setMinSize(newMinSize);
+      console.log(getCurrentWindow().onResized)
+      //getCurrentWindow().setSize(newMinSize);*/
     });
 
     await promise;
@@ -448,7 +463,6 @@
     showResetOption={splashScreenShowResetOption}
   />
   {#await promise then _}
-    <!-- Main application logic -->
     <main>
       <MenuBar></MenuBar>
       <div id="main-container">

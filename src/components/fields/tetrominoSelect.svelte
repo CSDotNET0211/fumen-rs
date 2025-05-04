@@ -146,6 +146,7 @@
       bind:value={$input_value}
       oninput={handleChange}
       placeholder="szjltoi"
+      autocomplete="off"
     />
     <div id="image-container">
       <button onclick={() => handleClick("s")}>

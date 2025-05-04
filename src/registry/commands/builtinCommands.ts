@@ -14,6 +14,7 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { t } from "../../translations/translations.ts";
 import { ImageProcessor } from "../../imageProcessor.ts";
 import { Image as TauriImage } from "@tauri-apps/api/image";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 
 export let fumenPages: Pages | null = null;

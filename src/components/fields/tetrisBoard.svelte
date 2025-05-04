@@ -32,6 +32,7 @@
   //	let tetrisBoardOffscreenSprites: CellSprite[];
   let boardContainer: Container;
   let unlistenBoardUpdater: any;
+  let unlistenResize: any;
   const TETROMINO_SHAPES = [
     //S
     [
@@ -136,15 +137,39 @@
       boardContainer,
       document.getElementById("canvas") as HTMLCanvasElement
     );
+
+    async function adjustCanvasSize() {
+      const canvasElement = tetrisBoardApp?.canvas;
+      const containerElement = document.getElementById("canvas");
+
+      if (canvasElement && containerElement) {
+        const containerRect = containerElement.getBoundingClientRect();
+        const canvasWidth = canvasElement.width;
+        const canvasHeight = canvasElement.height;
+
+        if (
+          canvasWidth / canvasHeight >
+          containerRect.width / containerRect.height
+        ) {
+          canvasElement.style.width = "100%";
+          canvasElement.style.height = "auto";
+        } else {
+          canvasElement.style.width = "auto";
+          canvasElement.style.height = "100%";
+        }
+      }
+    }
+
+    unlistenResize = await listen<string>("tauri://resize", adjustCanvasSize);
+    await adjustCanvasSize();
   }
 
   export async function unmount() {
     tetrisBoardSprites = [];
-    //	tetrisBoardSprites.forEach((sprite) =>
-    //		boardContainer.removeChild(sprite),
-    //	);
+
     tetrisBoardApp?.destroy();
     unlistenBoardUpdater();
+    // unlistenResize();
   }
   function update_field(
     boardSprites: CellSprite[],
@@ -379,23 +404,17 @@
   }
 
   #canvas {
-    display: block;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     max-width: 100%;
     max-height: 100%;
-    width: auto;
-    height: auto;
-    flex-shrink: 0;
+    width: 100%;
+    height: 100%;
   }
 
   :global(#canvas > canvas) {
-    width: 100%;
-    height: 100%;
     aspect-ratio: var(--aspect-ratio, 310/713);
-    /* contain風を強調したい場合はmax指定 */
-    max-width: 100%;
-    max-height: 100%;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
   }
 </style>
