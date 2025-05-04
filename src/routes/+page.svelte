@@ -478,6 +478,12 @@
           style="width:calc(100% - 110px - 110px);position:relative;"
           id="main_panel"
         >
+          <!-- Dynamic Board -->
+
+          {#if currentFieldComponent}
+            <svelte:component this={currentFieldComponent}></svelte:component>
+          {/if}
+
           <!-- Board Override -->
           {#if currentOverrideComponent}
             <svelte:component
@@ -490,11 +496,6 @@
                   ? { fumenImage }
                   : {}}
             ></svelte:component>
-          {/if}
-
-          <!-- Dynamic Board -->
-          {#if currentFieldComponent}
-            <svelte:component this={currentFieldComponent}></svelte:component>
           {/if}
 
           <div id="cursors"></div>

@@ -212,7 +212,7 @@
     justify-content: center;
     width: 100%;
     flex-wrap: wrap;
-    max-width: 320px; /* 3 rows x 100px + 2*10px margin */
+    max-width: 320px;
     overflow-y: auto;
   }
 
