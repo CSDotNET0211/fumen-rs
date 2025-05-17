@@ -27,7 +27,7 @@
       },
       {
         "label": "debug",
-        "url": "debug",
+        "url": "visualizer",
         "title": "DEBUG",
         "width": 532,
         "height": 770,

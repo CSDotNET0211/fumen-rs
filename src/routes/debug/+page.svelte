@@ -5,7 +5,6 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { Rectangle } from "pixi.js";
   import { convertFileSrc } from "@tauri-apps/api/core";
-  import GMeans from "g-means";
 
   Chart.register(...registerables);
 
@@ -35,6 +34,9 @@
 
   // 仮の画像パスリスト（本来は所定の場所から取得する）
   let trainingImagePaths: string[] = [];
+
+  let hsPairs: [number, number][] = []; // h, s
+  let hsPairsColor: string[] = []; // indexで対応する色(rgb)
 
   // 画像ファイル選択時の処理
   async function handleFileInput(event: Event) {
@@ -71,7 +73,8 @@
       // h(sin)・sの2次元のデータをセットで作り、分類する
       //分類されたやつグループごとに平均を出し、nnでゲームを推論
 
-      const hsPairs = []; // hとsをまとめた配列を格納する配列
+      hsPairs = [];
+      hsPairsColor = [];
 
       for (const chunk of chunks) {
         const chunkData = ImageProcessor.getImageDataFromChunk(
@@ -114,8 +117,12 @@
           // RGBからHSVに変換
           const { h, s, v } = ImageProcessor.convertToHsv(avgR, avgG, avgB);
 
-          // hとsを配列としてまとめて配列に追加
+          // h, sを配列としてまとめて配列に追加
           hsPairs.push([h, s]);
+          // 色をrgb文字列で格納
+          hsPairsColor.push(
+            `rgb(${Math.round(avgR)},${Math.round(avgG)},${Math.round(avgB)})`
+          );
 
           // hをsinに変換して新しい配列に格納
           const hSin = Math.sin((h * Math.PI) / 180); // hをラジアンに変換してsinを計算
@@ -126,10 +133,6 @@
       }
 
       console.log("HS Pairs:", hsPairs); // 確認用
-      const gmeans = new GMeans();
-      gmeans.fit(hsPairs);
-      console.log("予測");
-      console.log(gmeans.predict(hsPairs));
 
       // データを圧縮（チャート描画用にまとめる）
       const compressedHueCounts = compressData(
@@ -150,6 +153,7 @@
       renderChart("myChart", "Hue Counts", compressedHueCounts);
       renderChart("myChartS", "Saturation Counts", compressedSaturationCounts);
       renderChart("myChartV", "Value Counts", compressedValueCounts);
+      renderChart("hsScatter", "HS Scatter", hsPairs, "scatter"); // scatter追加
     }
   }
 
@@ -367,32 +371,58 @@
     chartV = null;
   }
 
-  function renderChart(canvasId: string, label: string, data: number[]) {
+  function renderChart(
+    canvasId: string,
+    label: string,
+    data: number[] | [number, number][],
+    type: "line" | "scatter" = "line"
+  ) {
     const ctx = document.getElementById(canvasId) as HTMLCanvasElement;
-    const labels = Array.from({ length: data.length }, (_, i) =>
-      (i * compressionFactor + 1).toString()
-    );
-    console.log(labels);
+
+    let chartLabels: string[] = [];
+    let datasets: any[] = [];
+    if (type === "line") {
+      chartLabels = Array.from({ length: (data as number[]).length }, (_, i) =>
+        (i * compressionFactor + 1).toString()
+      );
+      datasets = [
+        {
+          label,
+          data,
+          borderWidth: 1,
+          borderColor: datasetColors[0],
+          backgroundColor: datasetColors[0],
+        },
+      ];
+    } else if (type === "scatter") {
+      chartLabels = [];
+      // hsPairsColorを使って色を設定
+      const scatterData = (data as [number, number][]).map(([x, y], i) => ({
+        x,
+        y,
+      }));
+      datasets = [
+        {
+          label,
+          data: scatterData,
+          showLine: false,
+          pointBackgroundColor: hsPairsColor,
+          pointBorderColor: hsPairsColor,
+        },
+      ];
+    }
 
     let targetChart: Chart | null = null;
     if (canvasId === "myChart") targetChart = chart;
     if (canvasId === "myChartS") targetChart = chartS;
     if (canvasId === "myChartV") targetChart = chartV;
 
-    if (!targetChart) {
+    if (!targetChart && type === "line") {
       const newChart = new Chart(ctx, {
         type: "line",
         data: {
-          labels,
-          datasets: [
-            {
-              label,
-              data,
-              borderWidth: 1,
-              borderColor: datasetColors[0],
-              backgroundColor: datasetColors[0],
-            },
-          ],
+          labels: chartLabels,
+          datasets,
         },
         options: {
           scales: {
@@ -406,7 +436,38 @@
       if (canvasId === "myChart") chart = newChart;
       if (canvasId === "myChartS") chartS = newChart;
       if (canvasId === "myChartV") chartV = newChart;
-    } else {
+    } else if (type === "scatter") {
+      new Chart(ctx, {
+        type: "scatter",
+        data: {
+          datasets,
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: "top",
+            },
+            title: {
+              display: true,
+              text: label,
+            },
+          },
+          scales: {
+            x: {
+              title: { display: true, text: "Hue" },
+              min: 0,
+              max: 360,
+            },
+            y: {
+              title: { display: true, text: "Saturation" },
+              min: 0,
+              max: 100,
+            },
+          },
+        },
+      });
+    } else if (targetChart) {
       const colorIndex =
         targetChart.data.datasets.length % datasetColors.length;
       targetChart.data.datasets.push({
@@ -419,43 +480,6 @@
       targetChart.update();
     }
   }
-  /*
-	async function generateData() {
-		const selectedFolder = await open({
-			directory: true,
-		});
-
-		if (selectedFolder && typeof selectedFolder === "string") {
-			imageList = [];
-
-			const typeFolders = await readDir(selectedFolder, {
-				dir: BaseDirectory.App,
-			});
-
-			for (const typeFolder of typeFolders) {
-				if (typeFolder.children) {
-					const type = typeFolder.name!;
-					for (const classFolder of typeFolder.children) {
-						if (classFolder.children) {
-							const className = classFolder.name!;
-							for (const file of classFolder.children) {
-								if (
-									file.name?.match(/\.(jpg|jpeg|png|bmp)$/i)
-								) {
-									imageList.push({
-										type,
-										class: className,
-										path: file.path,
-									});
-								}
-							}
-						}
-					}
-				}
-			}
-			console.log("Image List:", imageList);
-		}
-	}*/
 
   onMount(() => {});
 
@@ -476,6 +500,7 @@
   <canvas id="myChart" style="margin-top: 1rem;"></canvas>
   <canvas id="myChartS" style="margin-top: 1rem;"></canvas>
   <canvas id="myChartV" style="margin-top: 1rem;"></canvas>
+  <canvas id="hsScatter" style="margin-top: 1rem;"></canvas>
   <div style="margin-top: 1rem;">
     <label for="sampleSize">Sample Size:</label>
     <input

@@ -1,4 +1,6 @@
+use candle_nn::Linear;
 use libloading::Library;
+use rand::Rng;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::fs;
@@ -9,9 +11,18 @@ use std::vec;
 use sys_locale::get_locale;
 use tauri::{LogicalSize, Size, Window};
 
+mod model;
+
 static before_window_size: OnceLock<(u32, u32)> = OnceLock::new();
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+#[tauri::command]
+fn test() {
+    return;
+    let mut rng = rand::thread_rng();
+    let random_vec: Vec<f32> = (0..600).map(|_| rng.gen_range(0.0..1.0)).collect();
+    model::test(&random_vec);
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("aHello, {}! You've been greeted from Rust!", name)
@@ -223,6 +234,8 @@ async fn search_bot_best(
     }
 }
 
+fn candle() {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -261,7 +274,8 @@ pub fn run() {
             adjust_window_size,
             initialize_window,
             set_window_size,
-            get_window_size
+            get_window_size,
+            test
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
