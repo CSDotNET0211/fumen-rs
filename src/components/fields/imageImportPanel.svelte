@@ -329,12 +329,6 @@
     overlayBoardViewContent.set(OverrideBoardViewContentType.None);
 
     isLoading = false;
-    //	if (predictionFailed) {
-    //		// Show failure message
-    //		document.getElementById("#howto")!.innerText = $t(
-    //			"common.image-import-panel-process-failed",
-    //		);
-    //	}
   }
 </script>
 

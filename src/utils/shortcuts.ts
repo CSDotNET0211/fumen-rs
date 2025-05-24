@@ -1,6 +1,5 @@
 import { writable, get } from 'svelte/store';
 
-// Define the IShortcut interface
 export interface IShortcut {
 	id: string;
 	key: string;
@@ -10,7 +9,6 @@ export interface IShortcut {
 	callback(): void;
 }
 
-// Implement the Shortcut class
 export class Shortcut implements IShortcut {
 	constructor(
 		public id: string,
@@ -22,9 +20,8 @@ export class Shortcut implements IShortcut {
 	) { }
 }
 
-// Define the IShortcutRegistry interface
 export interface IShortcutRegistry {
-	register(shortcut: IShortcut): void; // Changed to accept IShortcut
+	register(shortcut: IShortcut): void;
 	unregisterById(id: string): void;
 	unregisterByKey(combinedKey: string): void;
 	getKeyById(id: string): string | undefined;
@@ -32,17 +29,16 @@ export interface IShortcutRegistry {
 	clear(): void;
 	unregisterShortcutByKey(key: string, ctrl: boolean, shift: boolean, alt: boolean): void;
 	unregisterAllShortcuts(): void;
-	handleShortcut(event: KeyboardEvent): void; // Added here
+	handleShortcut(event: KeyboardEvent): void;
 }
 
-// Modify ShortcutRegistry to implement IShortcutRegistry
 export const shortcuts = new class implements IShortcutRegistry {
 	private _shortcuts = writable<Record<string, { callback: () => void }>>({});
 
 	private idToKey = writable<Record<string, string>>({});
 	private keyToId = writable<Record<string, string>>({});
 
-	register(shortcut: IShortcut): void { // Changed to accept IShortcut
+	register(shortcut: IShortcut): void {
 		const combinedKey = `${shortcut.ctrl ? 'Ctrl+' : ''}${shortcut.shift ? 'Shift+' : ''}${shortcut.alt ? 'Alt+' : ''}${shortcut.key.toUpperCase()}`;
 		this.unregisterById(shortcut.id);
 		this.unregisterByKey(combinedKey);
@@ -121,19 +117,3 @@ export const shortcuts = new class implements IShortcutRegistry {
 		}
 	}
 }
-
-/*
-export async function loadShortcuts(): Promise<void> {
-	const context = import.meta.glob("../registry/shortcuts/*.ts");
-	for (const path in context) {
-		const module = await context[path]();
-		for (const key in module as Record<string, any>) {
-			const ShortcutClass = (module as Record<string, any>)[key];
-
-			if (typeof ShortcutClass === "function" && ShortcutClass.prototype instanceof Shortcut) {
-				registerShortcutWithId(new ShortcutClass());
-			}
-		}
-	}
-}
-*/

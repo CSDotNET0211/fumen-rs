@@ -27,7 +27,6 @@ fn test() {
 #[tauri::command]
 fn train_data(values: Vec<Vec<f32>>) {
     let mut model = model::Model::default();
-    //dbg!(&values);
     model.train(values);
 }
 
@@ -173,7 +172,6 @@ fn adjust_window_size(window: Window) {
     let current_size = window.outer_size().unwrap();
     let scale_factor = window.scale_factor().unwrap();
 
-    // 初回のみサイズを保存
     let (old_width, old_height) = before_window_size.get().unwrap();
 
     let new_width = current_size.width as f64;
@@ -182,14 +180,11 @@ fn adjust_window_size(window: Window) {
     let old_height = *old_height as f64;
     let aspect = old_width / old_height;
 
-    // 幅と高さ、どちらが多く変わったかで判断
     let (final_width, final_height) =
         if (new_width - old_width).abs() > (new_height - old_height).abs() {
-            // 幅がメインで変化した → 高さを補正
             let height = new_width / aspect;
             (new_width, height)
         } else {
-            // 高さがメインで変化した → 幅を補正
             let width = new_height * aspect;
             (width, new_height)
         };
@@ -220,7 +215,7 @@ fn set_window_size(window: Window, width: f64, height: f64) {
 #[tauri::command]
 fn get_window_size(window: Window) -> (u32, u32) {
     let current_size = window.outer_size().unwrap();
-    // let scale_factor = window.scale_factor().unwrap();
+
     let width = (current_size.width) as u32;
     let height = (current_size.height) as u32;
     (width, height)

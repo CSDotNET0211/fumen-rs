@@ -9,7 +9,7 @@ export interface IMenu {
 	submenu?: MenuItem[];
 	checked?: boolean;
 	disabled?: boolean;
-	priority: number; // Added priority property
+	priority: number;
 }
 
 export interface IMenuRegistry {

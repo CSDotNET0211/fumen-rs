@@ -169,7 +169,6 @@
 
     tetrisBoardApp?.destroy();
     unlistenBoardUpdater();
-    // unlistenResize();
   }
   function update_field(
     boardSprites: CellSprite[],
