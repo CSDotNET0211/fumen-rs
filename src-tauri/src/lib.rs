@@ -1,3 +1,4 @@
+use candle_core::Device;
 use candle_nn::Linear;
 use libloading::Library;
 use rand::Rng;
@@ -21,6 +22,57 @@ fn test() {
     let mut rng = rand::thread_rng();
     let random_vec: Vec<f32> = (0..600).map(|_| rng.gen_range(0.0..1.0)).collect();
     model::test(&random_vec);
+}
+
+#[tauri::command]
+fn train_data(values: Vec<Vec<f32>>) {
+    let mut model = model::Model::default();
+    //dbg!(&values);
+    model.train(values);
+}
+
+#[tauri::command]
+fn guess_data(values: Vec<f32>) {
+    let model = model::Model::load("model.bin", &Device::Cpu).unwrap();
+
+    let result = model.predict(&values).unwrap();
+    dbg!(&result);
+    //model.train(values);
+}
+
+#[tauri::command]
+fn get_train_data_path(folder_path: String) -> HashMap<String, Vec<String>> {
+    let mut folder_map = HashMap::new();
+    let base_path = PathBuf::from(folder_path);
+
+    if let Ok(entries) = fs::read_dir(&base_path) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    let folder_name = path.file_name().unwrap().to_string_lossy().to_string();
+                    let mut file_list = Vec::new();
+
+                    if let Ok(sub_entries) = fs::read_dir(&path) {
+                        for sub_entry in sub_entries {
+                            if let Ok(sub_entry) = sub_entry {
+                                let sub_path = sub_entry.path();
+                                if sub_path.is_file() {
+                                    if let Some(file_name) = sub_path.file_name() {
+                                        file_list.push(file_name.to_string_lossy().to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    folder_map.insert(folder_name, file_list);
+                }
+            }
+        }
+    }
+
+    folder_map
 }
 
 #[tauri::command]
@@ -244,24 +296,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        /*  .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(move |_app, shortcut, event| {
-                    let ctrl_n_shortcut = Shortcut::new(Some(Modifiers::CONTROL), Code::KeyA);
-                    println!("{:?}", shortcut);
-                    if shortcut == &ctrl_n_shortcut {
-                        match event.state() {
-                            ShortcutState::Pressed => {
-                                println!("Ctrl-N Pressed!");
-                            }
-                            ShortcutState::Released => {
-                                println!("Ctrl-N Released!");
-                            }
-                        }
-                    }
-                })
-                .build(),
-        )*/
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
@@ -275,7 +309,10 @@ pub fn run() {
             initialize_window,
             set_window_size,
             get_window_size,
-            test
+            test,
+            get_train_data_path,
+            train_data,
+            guess_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

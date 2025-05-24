@@ -282,6 +282,12 @@
     }
 
     console.log("chunkArray:", chunkArray); // 確認用
+    const cloudArray = chunkArray.flatMap(({ h, s, v }) => {
+      const { x, y, z } = hsvToPosition(h, s, v, displayMode);
+      return [x, y, z];
+    });
+    console.log("cloudArray:", cloudArray); // 確認用
+    let result = await invoke("guess_data", { values: cloudArray });
   }
 
   // 指定パスの画像群からtrainDataを生成（labelはパスの末尾フォルダ名）
@@ -331,33 +337,61 @@
   }
 
   async function onTrainClick() {
-    // 例: "train/s", "train/z", "train/l", "train/j", "train/t", "train/o", "train/i", "train/empty", "train/garbage" のデータを取得
-    const labels = ["s", "z", "l", "j", "t", "o", "i", "empty", "garbage"];
-    let trainData: {
-      h: number;
-      s: number;
-      v: number;
-      label: string;
-    }[] = [];
-    for (const label of labels) {
-      const data = await getTrainDataFromPath(`train/${label}`);
-      trainData = trainData.concat(data);
+    const trainFolder = "C:\\Users\\CSDotNET\\Downloads\\train";
+    const trainPath = await invoke<Record<string, string[]>>(
+      "get_train_data_path",
+      {
+        folderPath: trainFolder,
+      }
+    );
+
+    console.log("trainPath:", trainPath); // 確認用
+    // const targets: string[] = [];
+    const values: number[][][] = []; // A vector of vectors of vectors
+
+    const targetIndices = Array.from(Object.keys(trainPath)).reduce(
+      (acc, key, index) => {
+        acc[key] = index;
+        values[index] = []; // Initialize a new vector for each index
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    for (const [key, value] of Object.entries(trainPath)) {
+      const numericKey = targetIndices[key];
+
+      for (const file of value) {
+        const fileURL = await convertFileSrc(
+          trainFolder + "\\" + key + "\\" + file
+        );
+
+        // Load the image
+        const img = new Image();
+        img.src = fileURL;
+        img.crossOrigin = "anonymous";
+        await img.decode();
+
+        // Process the image into chunks
+        const chunks = await imageToChunks(img, ImageProcessor);
+
+        // Convert chunks to positions and push as a vector
+        const chunkPositions: number[] = [];
+        for (const chunk of chunks) {
+          const { h, s, v } = chunk;
+          const { x, y, z } = hsvToPosition(h, s, v, displayMode);
+          chunkPositions.push(x, y, z);
+        }
+        values[numericKey] = values[numericKey].concat(chunkPositions); // Concatenate chunkPositions to the specific numeric key's vector
+      }
     }
 
-    // trainDataが準備できたことを確認用に出力
-    console.log("trainData:", trainData);
+    // Convert targets to numeric indices
+    // const numericTargets = targets.map((target) => targetIndices[target]);
 
-    // ...既存のファイルアップロード処理...
-    if (!trainFiles) {
-      alert("学習用ファイルを選択してください");
-      return;
-    }
-
-    for (const file of trainFiles) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {};
-      reader.readAsText(file);
-    }
+    //console.log("targets:", numericTargets); // 確認用
+    console.log("values:", values); // 確認用
+    await invoke("train_data", { values });
   }
 
   $: if (outlineMode !== undefined) {
