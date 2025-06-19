@@ -14,6 +14,7 @@
   } from "../store.ts";
   import { t } from "../translations/translations.ts";
   import { exit } from "@tauri-apps/plugin-process";
+  import { max } from "@tensorflow/tfjs";
 
   const title = "";
 
@@ -51,6 +52,15 @@
   async function minimizeWindow() {
     const currentWindow = await getCurrentWindow();
     await currentWindow.minimize();
+  }
+
+  async function maximizeWindow() {
+    const currentWindow = await getCurrentWindow();
+    if (await currentWindow.isMaximized()) {
+      await currentWindow.unmaximize();
+    } else {
+      await currentWindow.maximize();
+    }
   }
 
   function generateSubmenu(
@@ -519,6 +529,15 @@
       >
         <img src="minimize.png" alt="Minimize" class="control-icon" />
       </button>
+
+      <button
+        class="control-button"
+        data-type="Maximize"
+        onclick={maximizeWindow}
+      >
+        <img src="maximize.png" alt="Maximize" class="control-icon" />
+      </button>
+
       <button class="control-button" data-type="Close" onclick={closeWindow}>
         <img src="close.svg" alt="Close" class="control-icon" />
       </button>
@@ -672,6 +691,11 @@
   .control-button:hover[data-type="Minimize"] {
     background-color: #373737;
   }
+
+  .control-button:hover[data-type="Maximize"] {
+    background-color: #373737;
+  }
+
   .control-icon {
     width: 14px;
     height: 14px;

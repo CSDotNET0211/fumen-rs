@@ -22,6 +22,15 @@ package Window
     SplashWindow --|> IWindow
 }
 
+package Component {
+
+class MenuBar-svelte{}
+class StatusBar-svelte{}
+class Window-svelte{
+
+}
+}
+
 interface IDisposable {
     + dispose()
 }

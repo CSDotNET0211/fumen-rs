@@ -90,8 +90,8 @@
         gameConfig.update((config) => {
           if (config) {
             config.windowSize = {
-              width: size[0],
-              height: size[1],
+              width: size.width,
+              height: size.height,
             };
           }
           return config;
