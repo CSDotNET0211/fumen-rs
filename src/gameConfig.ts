@@ -1,5 +1,6 @@
 import { RotationType } from "tetris/src/rotation_type";
 import { Keymap } from "./keymap";
+import { BaseDirectory, exists, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 
 type KeymapEntry = {
 	key: string;
@@ -7,6 +8,8 @@ type KeymapEntry = {
 	title: string;
 };
 export class GameConfig {
+
+
 	keymaps: Map<string, Record<string, KeymapEntry>> | null;
 	das!: number | null;
 	arr!: number | null;
@@ -110,4 +113,63 @@ export class GameConfig {
 
 		return obj;
 	}
+
+	/// IS_WEB_MODEの場合はlocalStorage、Desktopの場合はファイルに保存
+	static async loadOrCreate(IS_WEB_MODE: boolean): Promise<GameConfig> {
+		let gameConfig: GameConfig | null = null;
+
+		if (IS_WEB_MODE) {
+			let config = localStorage.getItem("config");
+			if (!config) {
+				let gameConfig = GameConfig.default();
+				let locale = Intl.DateTimeFormat().resolvedOptions().locale;
+				console.log(locale);
+				if (locale === "ja-JP") {
+					gameConfig.language = "ja";
+				} else {
+					gameConfig.language = "en";
+				}
+
+				this.save(IS_WEB_MODE, gameConfig);
+			}
+
+			gameConfig = this.fromJSON(localStorage.getItem("config")!);
+		} else {
+			let configExists = await exists("config.json", {
+				baseDir: BaseDirectory.Resource,
+			});
+			if (!configExists) {
+				let gameConfig = GameConfig.default();
+				let locale = Intl.DateTimeFormat().resolvedOptions().locale;
+				console.log(locale);
+				if (locale === "ja-JP") {
+					gameConfig.language = "ja";
+				} else {
+					gameConfig.language = "en";
+				}
+
+				this.save(IS_WEB_MODE, gameConfig);
+			}
+
+			let jsonStr = await readTextFile("config.json", {
+				baseDir: BaseDirectory.Resource,
+			});
+
+			gameConfig = this.fromJSON(jsonStr);
+		}
+
+		return gameConfig!;
+	}
+
+	static save(IS_WEB_MODE: boolean, config: GameConfig) {
+		if (IS_WEB_MODE) {
+			localStorage.setItem("config", config.toJSON());
+		} else {
+			writeTextFile("config.json", config.toJSON(), {
+				baseDir: BaseDirectory.Resource,
+			});
+		}
+	}
+
+
 }

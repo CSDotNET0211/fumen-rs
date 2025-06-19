@@ -15,6 +15,7 @@
   import { TetrisEnv } from "tetris/src/tetris_env";
   import { emitTo } from "@tauri-apps/api/event";
   import { onMount, onDestroy } from "svelte";
+  import { window } from "@tauri-apps/api";
   type CursorStruct = { x: number; y: number };
 
   let share_svg: string = "/share.svg";
@@ -262,10 +263,12 @@
 
   let lastSentPositionForSendCursorPosition: CursorStruct = { x: -1, y: -1 };
 
-  function sendCursorPosition() {
+  async function sendCursorPosition() {
     if (socket && isConnected) {
       const x = currentMousePosition?.x ?? -1;
       const y = currentMousePosition?.y ?? -1;
+
+      // console.log("window_size", window_size);
 
       if (
         x === lastSentPositionForSendCursorPosition.x &&

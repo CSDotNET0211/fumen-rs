@@ -74,7 +74,16 @@ export class SnapshotData {
 	}
 }
 
+export class WindowPreset {
+	rightComponents: string[];
+	leftComponents: string[];
+	constructor(rightComponents: string[] = [], leftComponents: string[] = []) {
+		this.rightComponents = rightComponents;
+		this.leftComponents = leftComponents;
+	}
 
+
+}
 
 //TetrisかPuyo
 export const gameMode = writable<GameModeType>(GameModeType.Tetris);
@@ -102,6 +111,7 @@ export const teachableMachineModel = writable<TeachableMachine | null>(null);
 export const snapshot = writable<SnapshotData[]>([]);
 //ショートカットとプレイのキーコンがかぶった際の対処
 export const shortcutTriggered = writable(false);
+export const windowPresets = writable<WindowPreset[]>([]);
 
 //任意の変数を登録します
 const globalState = writable<Record<string, any>>({});

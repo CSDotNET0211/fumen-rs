@@ -159,12 +159,21 @@ unsafe fn load_library(bot_name: &str) -> Result<Arc<Mutex<Library>>, String> {
         }
     }
 }
+/// 現在のWindow情報を初期化
 #[tauri::command]
 fn initialize_window(window: Window) {
     let current_size = window.outer_size().unwrap();
     before_window_size
         .set((current_size.width, current_size.height))
         .ok();
+
+    let args: Vec<String> = std::env::args().collect();
+}
+
+#[tauri::command]
+fn get_args() -> Vec<String> {
+    let args: Vec<String> = std::env::args().collect();
+    args
 }
 
 #[tauri::command]
@@ -307,7 +316,8 @@ pub fn run() {
             test,
             get_train_data_path,
             train_data,
-            guess_data
+            guess_data,
+            get_args
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

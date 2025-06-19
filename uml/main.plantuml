@@ -1,0 +1,93 @@
+@startuml a
+package App {
+
+package Window
+{
+
+    interface IWindow {
+        + content: Component
+    }
+    class FieldWindow {
+        + rightComponents: List<Component>
+        + leftComponents: List<Component>
+        + async addBuiltinComponent(name: string, parent: Component)
+    }
+    class PreferencesWindow
+    class CanvasWindow
+    class SplashWindow
+
+    FieldWindow --|> IWindow
+    PreferencesWindow --|> IWindow
+    CanvasWindow --|> IWindow
+    SplashWindow --|> IWindow
+}
+
+interface IDisposable {
+    + dispose()
+}
+
+interface IUndoRedo {
+    + undo()
+    + redo()
+}
+interface ICopyPaste
+{
+    + copy()
+    + paste()
+}
+interface IEventListener {
+    + registerAll()
+    + unregisterAll()
+}
+
+
+
+Window.IWindow o-- IEventListener : <<implements>>
+
+Window.IWindow o-- IDisposable : <<implements>>
+Window.IWindow o-- IUndoRedo : <<implements>>
+Window.IWindow o-- ICopyPaste : <<implements>>
+
+package Field
+{
+    interface IField {
+    + content: Component
+}
+interface IFieldOverlay {
+    + content: Component
+}
+
+interface IBotSuggestions{
+    + requestBotSuggestion()
+    + receiveBotSuggestion(suggestion: string)
+    + clearBotSuggestions()
+}
+
+
+class TetrisEditField
+class TetrisPlayField
+class FumenImportField
+class ImageImportField
+class TetrominoSelectOverlay
+
+TetrisPlayField --|> IBotSuggestions
+TetrisEditField --|> IBotSuggestions
+TetrisEditField --|> IField
+TetrisPlayField --|> IField
+FumenImportField --|> IField
+ImageImportField --|> IField
+TetrominoSelectOverlay --|> IFieldOverlay
+
+FieldWindow o-- IField : field
+FieldWindow o-- IFieldOverlay : fieldOverlay
+
+IField o-- IDisposable
+IFieldOverlay o-- IDisposable
+note left
+    a note
+    can also be defined
+    on several lines
+end note
+}
+}
+@enduml

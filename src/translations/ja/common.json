@@ -1,4 +1,8 @@
 {
+	"menu-panel": "パネル",
+	"menu-panel-preset": "プリセット",
+	"menu-panel-panels": "パネル",
+	"menu-open-in-desktop": "デスクトップで開く",
 	"menu-open": "開く",
 	"menu-file": "ファイル",
 	"menu-new": "新規作成",

@@ -1,4 +1,8 @@
 {
+	"menu-panel": "Panel",
+	"menu-panel-preset": "Presets",
+	"menu-panel-panels": "Panels",
+	"menu-open-in-desktop": "Open in Desktop",
 	"menu-file": "File",
 	"menu-new": "New",
 	"menu-open": "Open",

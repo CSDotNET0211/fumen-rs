@@ -15,6 +15,8 @@
     overlayBoardViewContent,
     OverrideBoardViewContentType,
     teachableMachineModel,
+    windowPresets,
+    WindowPreset,
   } from "../store.ts";
   import { TetrisEnv } from "tetris/src/tetris_env";
   import {
@@ -52,6 +54,8 @@
   import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
   import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
+  window.IS_WEB_MODE = false;
+
   // グローバル変数
   let rightComponents: Writable<any[]>;
   let leftComponents: Writable<any[]>;
@@ -78,47 +82,34 @@
   });
 
   onMount(async () => {
-    unlistenResize = await listen<string>("tauri://resize", async (event) => {
-      resized = true;
+    if (!window.IS_WEB_MODE) {
+      unlistenResize = await listen<string>("tauri://resize", async (event) => {
+        resized = true;
 
-      const size = (await invoke("get_window_size")) as any;
-      gameConfig.update((config) => {
-        if (config) {
-          config.windowSize = {
-            width: size[0],
-            height: size[1],
-          };
-        }
-        return config;
-      });
-      /*
-      const ASPECT_RATIO = 10 / 23;
-
-      const currentSize = await getCurrentWindow().outerSize();
-      const scaleFactor = await getCurrentWindow().scaleFactor();
-
-      let idealWidth = currentSize.height * scaleFactor * ASPECT_RATIO;
-      let newMinSize = new LogicalSize({
-        width: currentSize.height * scaleFactor * (1 / 2),
-        height: 400 * scaleFactor,
+        const size = await getCurrentWindow().innerSize();
+        gameConfig.update((config) => {
+          if (config) {
+            config.windowSize = {
+              width: size[0],
+              height: size[1],
+            };
+          }
+          return config;
+        });
       });
 
-      getCurrentWindow().setMinSize(newMinSize);
-      console.log(getCurrentWindow().onResized)
-      //getCurrentWindow().setSize(newMinSize);*/
-    });
+      await promise;
 
-    await promise;
+      if (get(gameConfig)?.windowSize != undefined) {
+        invoke("set_window_size", {
+          window: getCurrentWindow(),
+          width: get(gameConfig)?.windowSize?.width,
+          height: get(gameConfig)?.windowSize?.height,
+        });
+      }
 
-    if (get(gameConfig)?.windowSize != undefined) {
-      invoke("set_window_size", {
-        window: getCurrentWindow(),
-        width: get(gameConfig)?.windowSize?.width,
-        height: get(gameConfig)?.windowSize?.height,
-      });
+      invoke("initialize_window");
     }
-
-    invoke("initialize_window");
 
     console.log($t("common.console-warning"), "color: red; font-size: 2em;");
 
@@ -152,6 +143,13 @@
       ])
     );
 
+    windowPresets.set([
+      new WindowPreset(
+        ["tetrisNext", "tetrisBlock", "tetrisSnapshot"],
+        ["tetrisHold", "tetrisBot"]
+      ),
+    ]);
+
     rightComponents = writable([]);
     leftComponents = writable([]);
 
@@ -167,6 +165,8 @@
       await addBuiltinComponent(name, parent);
     }
 
+    console.log(await invoke("get_args"));
+
     await commands.executeCommand("fumen.new", false);
   });
 
@@ -181,36 +181,40 @@
   });
 
   async function initializeInSplash() {
-    splashScreenStatusText = "Loading config files (1/4)";
-    let configExists = await exists("config.json", {
-      baseDir: BaseDirectory.Resource,
-    });
-    if (!configExists) {
-      let gameConfig = GameConfig.default();
-      let locale = Intl.DateTimeFormat().resolvedOptions().locale;
-      console.log(locale);
-      if (locale === "ja-JP") {
-        gameConfig.language = "ja";
-      } else {
-        gameConfig.language = "en";
-      }
+    splashScreenStatusText = "Loading config (1/4)";
 
-      await writeTextFile("config.json", gameConfig.toJSON(), {
+    /*
+    if (window.IS_WEB_MODE) {
+      let configExists = await exists("config.json", {
         baseDir: BaseDirectory.Resource,
       });
-    }
+      if (!configExists) {
+        let gameConfig = GameConfig.default();
+        let locale = Intl.DateTimeFormat().resolvedOptions().locale;
+        console.log(locale);
+        if (locale === "ja-JP") {
+          gameConfig.language = "ja";
+        } else {
+          gameConfig.language = "en";
+        }
 
-    let jsonStr = await readTextFile("config.json", {
-      baseDir: BaseDirectory.Resource,
-    });
-    let configJson = GameConfig.fromJSON(jsonStr);
+        await writeTextFile("config.json", gameConfig.toJSON(), {
+          baseDir: BaseDirectory.Resource,
+        });
+      }
+
+      let jsonStr = await readTextFile("config.json", {
+        baseDir: BaseDirectory.Resource,
+      });
+    } else {
+    }
+  */
+    let configJson = await GameConfig.loadOrCreate(window.IS_WEB_MODE);
 
     gameConfig.set(configJson);
 
     gameConfig.subscribe((config) => {
-      writeTextFile("config.json", config!.toJSON(), {
-        baseDir: BaseDirectory.Resource,
-      });
+      GameConfig.save(window.IS_WEB_MODE, config!);
     });
 
     console.log(configJson.language);
@@ -360,6 +364,48 @@
             $t("common.menu-stop"),
             shortcuts.getKeyById("fumen.shortcut.edit") ?? "",
             () => boardViewContent.set(BoardViewContentType.TetrisEdit)
+          ),
+        ]
+      ),
+      new StoreMenuItem(
+        MenuItemType.Normal,
+        $t("common.menu-panel"),
+        "",
+        () => {},
+        [
+          new StoreMenuItem(
+            MenuItemType.Normal,
+            $t("common.menu-panel-preset"),
+            "",
+            () => openUrl("https://discord.gg/F958vMFfcV"),
+            [
+              new StoreMenuItem(
+                MenuItemType.Normal,
+                $t("common.menu-panel-preset-1"),
+                "",
+                () => {
+                  getCurrentWebviewWindow()?.setSize(
+                    new LogicalSize(1280, 720)
+                  );
+                }
+              ),
+              new StoreMenuItem(
+                MenuItemType.Normal,
+                $t("common.menu-panel-preset-2"),
+                "",
+                () => {
+                  getCurrentWebviewWindow()?.setSize(
+                    new LogicalSize(1920, 1080)
+                  );
+                }
+              ),
+            ]
+          ),
+          new StoreMenuItem(
+            MenuItemType.Normal,
+            $t("common.menu-panel-panels"),
+            "",
+            () => openUrl("https://ko-fi.com/csdotnet")
           ),
         ]
       ),
