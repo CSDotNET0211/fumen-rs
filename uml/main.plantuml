@@ -12,6 +12,11 @@ package Window
         + leftComponents: List<Component>
         + async addBuiltinComponent(name: string, parent: Component)
     }
+
+note left
+    windowのopen/closeが呼ばれた際に
+end note
+
     class PreferencesWindow
     class CanvasWindow
     class SplashWindow
@@ -92,11 +97,7 @@ FieldWindow o-- IFieldOverlay : fieldOverlay
 
 IField o-- IDisposable
 IFieldOverlay o-- IDisposable
-note left
-    a note
-    can also be defined
-    on several lines
-end note
+
 }
 }
 @enduml

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Chart, registerables } from "chart.js";
   import { onDestroy, onMount } from "svelte";
-  import { ImageProcessor } from "../../imageProcessor";
+  import { ImageProcessor } from "../../features/windows/field/fields/ImageImport/imageProcessor";
   import { open } from "@tauri-apps/plugin-dialog";
   import { Rectangle } from "pixi.js";
   import { convertFileSrc } from "@tauri-apps/api/core";

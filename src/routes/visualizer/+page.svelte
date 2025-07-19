@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as THREE from "three";
-  import { ImageProcessor } from "../../imageProcessor";
+  import { ImageProcessor } from "../../features/windows/field/fields/ImageImport/imageProcessor";
   import { RandomForestClassifier as RFClassifier } from "ml-random-forest";
   import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-  import { hsvToPosition, imageToChunks } from "../../utils/fumenImage";
+  import { hsvToPosition, imageToChunks } from "../../core/utils/fumenImage";
 
   let container: HTMLDivElement;
   let chunkArray: { h: number; s: number; v: number; color: string }[] = [];

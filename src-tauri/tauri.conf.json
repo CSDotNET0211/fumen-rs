@@ -24,18 +24,6 @@
         "decorations": false,
         "shadow": true,
         "devtools": true
-      },
-      {
-        "label": "debug",
-        "url": "visualizer",
-        "title": "DEBUG",
-        "width": 532,
-        "height": 770,
-        "fullscreen": false,
-        "resizable": false,
-        "maximizable": false,
-        "devtools": true,
-        "visible": false
       }
     ],
     "security": {
