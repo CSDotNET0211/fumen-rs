@@ -4,7 +4,10 @@
   import type { TetrisEnv } from "tetris/src/tetris_env";
   import { emitTo } from "@tauri-apps/api/event";
   import { snapshot } from "../../../../app/stores/misc";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
   import { t } from "../../../../translations/translations";
   import { SnapshotData } from "../../../../app/snapShotData";
   import { getCanvasImage } from "../modules/tetrisBoard.svelte";
@@ -27,7 +30,7 @@
     history.update((history: History) => {
       history.add(
         $t("common.history-apply-shapshot") + " " + index,
-        get(fields)[get(fieldIndex)].clone(),
+        get(currentFieldNode)!.clone(),
         ""
       );
       return history;
@@ -35,7 +38,7 @@
   }
 
   async function handleAddClick() {
-    let env = get(fields)[get(fieldIndex)].clone();
+    let env = get(currentFieldNode)!.clone();
     let thumbnail = await getCanvasImage();
     let title = "Snapshot " + (get(snapshot).length + 1);
 

@@ -1,8 +1,23 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import type { TetrisEnv } from "tetris/src/tetris_env";
+import { FieldNode } from "../../features/windows/canvas/node";
+import { CANVAS_WIDTH } from "../../features/windows/canvas/const";
+//export const fields = writable<Map<number, TetrisEnv>>(new Map());
+export const currentFieldIndex = writable(-1);
+export const currentFieldNode = writable<TetrisEnv | null>(null);
 
-export const fields = writable<TetrisEnv[]>([]);
-export const fieldIndex = writable(-1);
-export const fieldImages = writable<Map<number, HTMLImageElement>>(new Map());
-export const fieldNodeConnections = writable<Map<number, Map<number, number[]>>>(new Map());
-export const fieldPositions = writable<Map<number, { x: number; y: number }>>(new Map());
+currentFieldIndex.subscribe((id) => {
+	console.log("Current field index changed to:", id);
+	currentFieldNode.set(FieldNode.getFromDB(id));
+});
+
+currentFieldNode.subscribe((field) => {
+
+	if (get(currentFieldIndex) < 1 || !field) {
+		return;
+	}
+	FieldNode.updateDB(get(currentFieldIndex), field!);
+});
+
+// canvasのスクロール位置・ズームを保存するストア
+export const canvasView = writable<{ x: number; y: number; zoom: number } | null>(null);

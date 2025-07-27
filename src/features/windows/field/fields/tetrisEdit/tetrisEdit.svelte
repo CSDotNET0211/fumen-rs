@@ -7,7 +7,10 @@
   import { Tetromino } from "tetris/src/tetromino.js";
   import { emitTo, listen } from "@tauri-apps/api/event";
   import { TetrisEnv } from "tetris/src/tetris_env";
-  import { fieldIndex, fields } from "../../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../../app/stores/data";
   import {
     autoFillQueue,
     selectedMino,
@@ -29,7 +32,7 @@
   let boardBeforeEdit: Tetromino[];
 
   let unlistenApplyField: any;
-  let unlistenAutoupdater: any;
+  let unlistenAutoCanvasUpdater: any;
   let unlistenApplyBot: any;
   let unlistenClearBot: any;
   let unlistenRequestBotField: any;
@@ -48,14 +51,15 @@
   }
 
   function draw(pos: number, erase_mode: boolean) {
-    fields.update((tetris_fields: TetrisEnv[]) => {
-      if (erase_mode) {
-        tetris_fields[get(fieldIndex)].board[pos] = Tetromino.Empty;
-      } else {
-        tetris_fields[get(fieldIndex)].board[pos] = get(selectedMino);
-      }
+    currentFieldNode.update((field) => {
+      if (field == null) return field;
 
-      return tetris_fields;
+      if (erase_mode) {
+        field.board[pos] = Tetromino.Empty;
+      } else {
+        field.board[pos] = get(selectedMino);
+      }
+      return field;
     });
   }
 
@@ -63,13 +67,14 @@
     unlistenAutoFillQueue = autoFillQueue.subscribe((value) => {
       if (value) {
         //ネクストを5つになるまで埋める
-        fields.update((tetris_fields: TetrisEnv[]) => {
-          let env = tetris_fields[get(fieldIndex)];
-          while (env.next.length < 5) {
-            env.next.push(env.getBag());
+        currentFieldNode.update((field) => {
+          if (field == null) return field;
+
+          while (field.next.length < 5) {
+            field.next.push(field.getBag());
           }
-          tetris_fields[get(fieldIndex)] = env;
-          return tetris_fields;
+
+          return field;
         });
 
         autoFillQueue.set(false);
@@ -80,7 +85,7 @@
       "applyfield",
       handleHistoryEvent
     );
-    unlistenAutoupdater = fields.subscribe(handleFieldUpdate);
+    unlistenAutoCanvasUpdater = currentFieldNode.subscribe(handleFieldUpdate);
 
     unlistenApplyBot = await listen<{
       board: Tetromino[];
@@ -103,8 +108,7 @@
     }
 
     unlistenRequestBotField = await listen<TetrisEnv>("requestbotfield", () => {
-      let env = get(fields)[get(fieldIndex)];
-      emitTo("main", "responsebotfield", env);
+      emitTo("main", "responsebotfield", get(currentFieldNode));
     });
   }
 
@@ -113,29 +117,25 @@
     Object.assign(instance, event.payload);
 
     if (event.payload != null) {
-      fields.update((currentFields) => {
-        currentFields[get(fieldIndex)] = instance;
-        return currentFields;
-      });
+      currentFieldNode.set(instance);
     }
   }
 
-  function handleFieldUpdate(tetris_fields: TetrisEnv[]) {
-    let env = tetris_fields[get(fieldIndex)];
+  function handleFieldUpdate(env: TetrisEnv | null) {
     if (env == null) return;
-    //console.log(env);
 
     emitTo("main", "onupdatefield", { board: env.board });
     emitTo("main", "onupdatehold", env.hold);
     emitTo("main", "onupdatenext", env.next);
   }
+
   function handlePointerDown(event: FederatedPointerEvent) {
     suppressFieldUpdateNotification.set(true);
-    boardBeforeEdit = [...get(fields)[get(fieldIndex)].board];
+    boardBeforeEdit = [...get(currentFieldNode)!.board];
 
     if (event.button === 0) {
       const pos = (event.target as CellSprite).pos;
-      erase_mode = get(fields)[get(fieldIndex)].board[pos] !== Tetromino.Empty;
+      erase_mode = get(currentFieldNode)!.board[pos] !== Tetromino.Empty;
 
       if (get(selectedMino) == 8) {
         specialBlocks = [];
@@ -169,7 +169,7 @@
   function handleSpecialBlockPointerEnter(pos: number) {
     if (
       !erase_mode &&
-      get(fields)[get(fieldIndex)].board[pos] === Tetromino.Empty &&
+      get(currentFieldNode)!.board[pos] === Tetromino.Empty &&
       !specialBlocks!.includes(pos) &&
       specialBlocks!.length < 4
     ) {
@@ -189,7 +189,7 @@
     for (const block of specialBlocks!) {
       overrideBoard[block] = 8;
     }
-    const board = get(fields)[get(fieldIndex)].board;
+    const board = get(currentFieldNode)!.board;
     emitTo("main", "onupdatefield", { board, override: overrideBoard });
   }
 
@@ -233,19 +233,21 @@
       return;
     }
 
-    fields.update((tetris_fields: TetrisEnv[]) => {
-      const field = tetris_fields[get(fieldIndex)].board;
-      for (const block of specialBlocks!) {
-        field[block] = tetromino;
+    currentFieldNode.update((env: TetrisEnv | null) => {
+      if (env) {
+        const field = env.board;
+        for (const block of specialBlocks!) {
+          field[block] = tetromino;
+        }
+        env.board = field;
       }
-      tetris_fields[get(fieldIndex)].board = field;
-      return tetris_fields;
+      return env;
     });
 
     history.update((history: History) => {
       history.add(
         $t("common.history-field"),
-        get(fields)[get(fieldIndex)].clone(),
+        get(currentFieldNode)!.clone(),
         Tetromino[tetromino]
       );
       return history;
@@ -257,7 +259,7 @@
       history.update((history: History) => {
         let count = countBoardDiff(
           boardBeforeEdit,
-          get(fields)[get(fieldIndex)].board
+          get(currentFieldNode)!.board
         );
         if (count == 0) return history;
 
@@ -270,7 +272,7 @@
 
         history.add(
           $t("common.history-field"),
-          get(fields)[get(fieldIndex)].clone(),
+          get(currentFieldNode)!.clone(),
           content
         );
         return history;
@@ -280,9 +282,7 @@
     }
 
     suppressFieldUpdateNotification.set(false);
-    fields.update((tetris_fields: TetrisEnv[]) => {
-      return tetris_fields;
-    });
+    //TODO: さっきここで虚無更新
   }
 
   function handlePointerUpOutside(event: FederatedPointerEvent) {
@@ -290,7 +290,7 @@
       history.update((history: History) => {
         let count = countBoardDiff(
           boardBeforeEdit,
-          get(fields)[get(fieldIndex)].board
+          get(currentFieldNode)!.board
         );
         if (count == 0) return history;
 
@@ -303,7 +303,7 @@
 
         history.add(
           $t("common.history-field"),
-          get(fields)[get(fieldIndex)].clone(),
+          get(currentFieldNode)!.clone(),
           content
         );
         return history;
@@ -311,9 +311,7 @@
     }
 
     suppressFieldUpdateNotification.set(false);
-    fields.update((tetris_fields: TetrisEnv[]) => {
-      return tetris_fields;
-    });
+    //TODO: さっきここで虚無更新
   }
 
   onMount(async () => {
@@ -321,8 +319,7 @@
     await setupEventListeners();
 
     autoFillQueue.set(false);
-    let tetris_fields = get(fields);
-    const env = tetris_fields[get(fieldIndex)];
+    const env = get(currentFieldNode);
     if (env == null) return;
 
     emitTo("main", "onupdatefield", { board: env.board });
@@ -333,7 +330,7 @@
   onDestroy(() => {
     unMountTetrisBoard();
     unlistenApplyField();
-    unlistenAutoupdater();
+    unlistenAutoCanvasUpdater();
     unlistenApplyBot();
     unlistenClearBot();
     unlistenRequestBotField();
@@ -363,8 +360,7 @@
   }
 
   function handleClearBot(): void {
-    let board = get(fields)[get(fieldIndex)].board;
-    emitTo("main", "onupdatefield", { board: board });
+    emitTo("main", "onupdatefield", { board: get(currentFieldNode)!.board });
   }
 
   function handleApplyBot(board: Tetromino[], ghosts: boolean[]): void {

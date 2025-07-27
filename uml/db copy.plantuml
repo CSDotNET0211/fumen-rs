@@ -1,0 +1,49 @@
+@startuml
+
+entity nodes {
+    * id : INTEGER [PK]
+    --
+    type : TEXT [NOT NULL]
+}
+
+entity connections {
+    * from_id : INTEGER [PK]
+    * to_id : INTEGER [PK]
+    * direction_from : TEXT [PK]
+    * direction_to : TEXT [PK]
+    --
+    FOREIGN KEY (from_id) REFERENCES nodes(id) ON DELETE CASCADE
+    FOREIGN KEY (to_id) REFERENCES nodes(id) ON DELETE CASCADE
+}
+
+entity field_data {
+    * id : INTEGER [PK]
+    --
+    data : TEXT [NOT NULL]
+    thumbnail : TEXT
+    hash : TEXT
+    x : REAL
+    y : REAL
+    --
+    FOREIGN KEY (id) REFERENCES nodes(id) ON DELETE CASCADE
+}
+
+entity text_data {
+    * id : INTEGER [PK]
+    --
+    x : REAL
+    y : REAL
+    size : INTEGER
+    text : TEXT
+    color : TEXT
+    backgroundColor : TEXT
+    --
+    FOREIGN KEY (id) REFERENCES nodes(id) ON DELETE CASCADE
+}
+
+nodes ||--o{ connections : "from_id"
+nodes ||--o{ connections : "to_id"
+nodes ||--o| field_data : "id"
+nodes ||--o| text_data : "id"
+
+@enduml

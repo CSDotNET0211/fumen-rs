@@ -1,0 +1,1044 @@
+<script lang="ts">
+  import { onDestroy, onMount } from "svelte";
+  import {
+    Application,
+    Assets,
+    Container,
+    Graphics,
+    Rectangle,
+    Sprite,
+    Text,
+    TextStyle,
+    Texture,
+  } from "pixi.js";
+  import { circIn } from "svelte/easing";
+  import { math } from "@tensorflow/tfjs";
+  import sha256 from "crypto-js/sha256";
+  import Base64 from "crypto-js/enc-base64";
+  import { db, updateAllNodeThumbnailToMySQL } from "../../../core/mysql/node";
+  import FieldWindow from "../field/fieldWindow.svelte";
+  import { currentWindow, WindowType } from "../../../app/stores/window";
+  import { currentFieldIndex } from "../../../app/stores/data";
+
+  let canvas: HTMLCanvasElement;
+  let app: Application;
+  let gridContainer: Container;
+  let nodeContainer: Container;
+  const baseGridSize = 40;
+  const DEFAULT_GRID_WIDTH = 800;
+  const DEFAULT_GRID_HEIGHT = 600;
+  let selectedNodeOutline;
+
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  const scaleSpeed = 0.1;
+
+  type Tool = "pointer" | "grab" | "text" | "move" | "add" | "htmlText";
+
+  let selectedTool: Tool = "pointer";
+  let originalTool: Tool | null = null;
+
+  function onWheel(e: WheelEvent) {
+    e.preventDefault();
+    const s = app.stage.scale.x;
+    const tx = (e.clientX - app.stage.x) / s;
+    const ty = (e.clientY - app.stage.y) / s;
+
+    const deltaScale =
+      -1 * Math.max(-1, Math.min(1, e.deltaY)) * scaleSpeed * s;
+    const newScale = s + deltaScale;
+
+    app.stage.x = -tx * newScale + e.clientX;
+    app.stage.y = -ty * newScale + e.clientY;
+    app.stage.scale.x = newScale;
+    app.stage.scale.y = newScale;
+
+    drawGrid();
+
+    // Update HTML text elements when the stage scales
+    updateHtmlTextElementPositions();
+  }
+
+  let isDragMode = false;
+
+  function onMouseDown(e: MouseEvent) {
+    if (selectedTool === "grab" || e.button === 1) {
+      // Drag mode or middle mouse button
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      canvas.style.cursor = "grab"; // Change cursor to grab
+
+      if (e.button === 1) {
+        // Temporarily switch to "grab" for middle mouse button
+        originalTool = selectedTool;
+        selectedTool = "grab";
+        // Enable drag mode for middle mouse button
+        isDragMode = true;
+      }
+    }
+  }
+
+  function onMouseUp(e: MouseEvent) {
+    if (e.button === 1 && originalTool !== null) {
+      // Restore original tool on middle mouse button release
+      selectedTool = originalTool;
+      originalTool = null;
+    }
+    isDragging = false;
+
+    // Update cursor based on selected tool
+    if (selectedTool === "text") {
+      canvas.style.cursor = "text"; // Change cursor to text
+    } else if (selectedTool === "pointer") {
+      canvas.style.cursor = "default"; // Change cursor to default
+    } else {
+      canvas.style.cursor = "pointer"; // Change cursor back to pointer
+    }
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (!isDragging) return;
+
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+
+    app.stage.x += dx;
+    app.stage.y += dy;
+
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+
+    // Update HTML text elements when the stage moves
+    updateHtmlTextElementPositions();
+  }
+
+  function createGrid(
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number,
+    gridStep: number,
+    lineWidth: number,
+    alpha: number
+  ): Graphics {
+    const grid = new Graphics();
+    // Vertical lines
+    for (let x = startX; x <= endX; x += gridStep) {
+      grid
+        .moveTo(x, startY - baseGridSize)
+        .lineTo(x, endY)
+        .stroke({ color: 0x333333, width: lineWidth, alpha });
+    }
+
+    // Horizontal lines
+    for (let y = startY; y <= endY; y += gridStep) {
+      grid
+        .moveTo(startX - baseGridSize, y)
+        .lineTo(endX, y)
+        .stroke({ color: 0x333333, width: lineWidth, alpha });
+    }
+
+    return grid;
+  }
+
+  async function drawNode() {
+    const result = db!.exec(`SELECT id FROM field_nodes;`);
+    if (result.length === 0 || result[0].values.length === 0) {
+      return;
+    }
+
+    console.log("count :", result[0].values.length);
+    for (const row of result[0].values) {
+      const id = row[0] as number;
+
+      // Fetch base64 image from field_thumbnails
+      const thumbnailResult = db!.exec(
+        `SELECT thumbnail_data FROM field_thumbnails WHERE id = ?;`,
+        [id]
+      );
+
+      if (
+        thumbnailResult.length === 0 ||
+        thumbnailResult[0].values.length === 0
+      ) {
+        continue;
+      }
+      const base64Image = thumbnailResult[0].values[0][0] as string;
+      //console.log("Base64 Image:", base64Image);
+
+      // Fetch coordinates from field_coordinates
+      const coordResult = db!.exec(
+        `SELECT x, y FROM field_coordinates WHERE id = ?;`,
+        [id]
+      );
+      if (coordResult.length === 0 || coordResult[0].values.length === 0) {
+        continue;
+      }
+      const [x, y] = coordResult[0].values[0] as [number, number];
+
+      // Create a PIXI sprite for the node
+      // Convert base64 image to a data URL for PIXI Texture
+      console.log("画像作成");
+
+      let texture: Texture = await Assets.load(base64Image);
+      const sprite = new Sprite(texture);
+
+      //  console.log("width:", texture.width);
+      //  console.log("height:", texture.height);
+      console.log("画像作成OK");
+      //  sprite.width = texture.width;
+      //  sprite.height = texture.height;
+      sprite.x = x;
+      sprite.y = y;
+      sprite.anchor.set(0.5);
+      sprite.scale.set(0.5);
+
+      sprite.eventMode = "static";
+      sprite.addEventListener("click", (event) => {
+        handleFieldNodeClick(id, sprite, event);
+        event.stopPropagation();
+      });
+
+      sprite.on("rightclick", (event) =>
+        handleNodeRightClick(id, sprite, event)
+      ); // Handle right-click event
+
+      nodeContainer.addChild(sprite);
+      console.log("Node added to container");
+    }
+  }
+
+  let selectedNodeId: number | null = null;
+  let selectedNodeSprite: Sprite | null = null;
+  let selectedTextObj: Text | null = null;
+
+  function handleFieldNodeClick(
+    id: number,
+    sprite: Sprite,
+    event: PointerEvent
+  ) {
+    if (!(event.button === 0 || event.button === 2)) return;
+
+    console.log("Node clicked with ID:", id);
+    console.log(event.detail);
+    if (event.detail >= 2 && event.button === 0) {
+      console.log("Node double clicked with ID:", id);
+      currentFieldIndex.set(id);
+      currentWindow.set(WindowType.Field);
+      return;
+    }
+
+    if (!selectedNodeOutline) return;
+    selectedNodeOutline.clear();
+    selectedNodeOutline.setStrokeStyle({ width: 2, color: 0x00ffff, alpha: 1 });
+    selectedNodeOutline
+      .rect(-sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height)
+      .stroke();
+    selectedNodeOutline.x = sprite.x;
+    selectedNodeOutline.y = sprite.y;
+
+    selectedNodeOutline.zIndex = 1002;
+    nodeContainer.addChild(selectedNodeOutline);
+
+    // 選択ノード情報を保持
+    selectedNodeId = id;
+    selectedNodeSprite = sprite;
+  }
+
+  function drawGrid() {
+    gridContainer.removeChildren();
+
+    const subGridSize = baseGridSize / 4;
+
+    // baseが40のときalphaが1、0のとき0になるように補正
+    //const correctedAlpha = Math.max(0, Math.min(1, base / 40));
+    //const alpha = correctedAlpha;
+
+    const mainGrid = createGrid(
+      0,
+      0,
+      DEFAULT_GRID_WIDTH,
+      DEFAULT_GRID_HEIGHT,
+      baseGridSize,
+      1,
+      0.3
+    );
+    const subGrid = createGrid(
+      0,
+      0,
+      DEFAULT_GRID_WIDTH,
+      DEFAULT_GRID_HEIGHT,
+      subGridSize,
+      0.5,
+      0.3
+    );
+
+    gridContainer.addChild(mainGrid);
+    gridContainer.addChild(subGrid);
+  }
+
+  function drawLinesOnNode(node: Graphics) {
+    node.lineStyle(2, 0x000000, 1); // Black lines with width 2
+    for (let x = 0; x <= DEFAULT_GRID_WIDTH; x += baseGridSize) {
+      node.moveTo(x, 0).lineTo(x, DEFAULT_GRID_HEIGHT);
+    }
+    for (let y = 0; y <= DEFAULT_GRID_HEIGHT; y += baseGridSize) {
+      node.moveTo(0, y).lineTo(DEFAULT_GRID_WIDTH, y);
+    }
+  }
+
+  onMount(async () => {
+    const hash = sha256("Hello, World!").toString();
+    await updateAllNodeThumbnailToMySQL();
+    console.log("SHA-256 Hash:", hash);
+
+    app = new Application();
+    await app.init({
+      canvas: canvas,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      background: "#ff0000", // Set a valid background color
+      antialias: true,
+      resizeTo: window,
+    });
+
+    console.log("width:", window.innerWidth, "height:", window.innerHeight);
+
+    gridContainer = new Container();
+    nodeContainer = new Container(); // Initialize nodeContainer
+    app.stage.addChild(gridContainer);
+    app.stage.addChild(nodeContainer);
+
+    // ノード選択用の枠を作成
+    selectedNodeOutline = new Graphics();
+    // --- ここから変更 ---
+    // 初期化時は描画しない（clearのみ）
+    selectedNodeOutline.clear();
+    // --- ここまで変更 ---
+    nodeContainer.addChild(selectedNodeOutline);
+
+    nodeContainer.eventMode = "static"; // Enable interaction for the nodeContainer
+    nodeContainer.hitArea = new Rectangle(-2000, -2000, 4000, 4000); // Set hit area for nodeContainer
+    nodeContainer.groupColor = 0xff0000; // Set background color (red)
+    nodeContainer.on("rightclick", handleStageRightClick); // Attach stage-related events to nodeContainer
+
+    // --- Add click handler to nodeContainer ---
+    nodeContainer.on("click", (event: PointerEvent) => {
+      if (event.button !== 0) return;
+
+      if (event.detail >= 2) {
+        // テキストノードのダブルクリック判定
+        const pos = app.renderer.events.mapPositionToPoint({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        let foundText: Text | null = null;
+        for (const child of nodeContainer.children) {
+          if (child instanceof Text) {
+            // 簡易的なヒット判定
+            const bounds = child.getBounds();
+            if (
+              event.clientX >= bounds.x &&
+              event.clientX <= bounds.x + bounds.width &&
+              event.clientY >= bounds.y &&
+              event.clientY <= bounds.y + bounds.height
+            ) {
+              foundText = child;
+              break;
+            }
+          }
+        }
+        if (foundText) {
+          editTextNode(foundText);
+          return;
+        }
+
+        showTextInput(event.clientX, event.clientY);
+        return;
+      }
+      if (selectedNodeOutline) {
+        selectedNodeOutline.clear();
+      }
+    });
+
+    drawGrid();
+    await drawNode();
+
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("mousedown", handleOutsideClick); // Close menu on outside click
+    window.addEventListener("keydown", handleKeyDown); // Add keyboard shortcuts
+  });
+
+  onDestroy(() => {
+    window.removeEventListener("keydown", handleKeyDown);
+
+    canvas.removeEventListener("wheel", onWheel);
+    canvas.removeEventListener("mousedown", onMouseDown);
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+    nodeContainer.off("rightclick", handleStageRightClick); // Remove event listener from nodeContainer
+    window.removeEventListener("mousedown", handleOutsideClick); // Remove listener on destroy
+    app.destroy(true, { children: true });
+
+    // Remove all HTML text elements
+    for (const element of htmlTextElements) {
+      if (element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+    }
+    htmlTextElements = [];
+  });
+
+  function selectTool(tool: Tool) {
+    selectedTool = tool;
+    console.log("Selected tool:", tool);
+  }
+
+  function handleBackClick() {
+    currentWindow.set(WindowType.Field);
+  }
+
+  let contextMenuVisible = true;
+  let contextMenuX = 100;
+  let contextMenuY = 100;
+  let contextMenuType = "stage"; // "stage" or "node" or "text" or "html-text"
+
+  function showContextMenu(x: number, y: number, type: string) {
+    contextMenuVisible = true;
+    contextMenuX = x;
+    contextMenuY = y;
+    contextMenuType = type;
+  }
+
+  function hideContextMenu() {
+    contextMenuVisible = false;
+  }
+
+  function handleStageRightClick(event: PointerEvent) {
+    if (event.button === 2) {
+      // Right-click
+      event.preventDefault();
+      showContextMenu(event.clientX, event.clientY, "stage");
+    }
+  }
+
+  function handleNodeRightClick(
+    id: number,
+    sprite: Sprite,
+    event: PointerEvent
+  ) {
+    if (event.button === 2) {
+      // Right-click
+      event.preventDefault();
+
+      showContextMenu(event.clientX, event.clientY, "node");
+      handleFieldNodeClick(id, sprite, event);
+
+      event.stopPropagation(); // Prevent the stage right-click from triggering
+    }
+  }
+
+  // テキストノード右クリック用
+  function handleTextNodeRightClick(textObj: Text, event: PointerEvent) {
+    if (event.button === 2) {
+      event.preventDefault();
+      selectedTextObj = textObj;
+      showContextMenu(event.clientX, event.clientY, "text");
+      event.stopPropagation();
+    }
+  }
+
+  // テキストノード編集もtextareaで改行対応
+  function editTextNode(textObj: Text) {
+    const bounds = textObj.getBounds();
+    const x = bounds.x + bounds.width / 2;
+    const y = bounds.y + bounds.height / 2;
+
+    const input = document.createElement("textarea");
+    input.value = textObj.text;
+    input.style.position = "fixed";
+    input.style.left = `${x}px`;
+    input.style.top = `${y}px`;
+    input.style.zIndex = "2000";
+    input.style.fontSize = "20px";
+    input.style.padding = "4px";
+    input.style.borderRadius = "4px";
+    input.style.border = "1px solid #888";
+    input.style.background = "#222";
+    input.style.color = "#fff";
+    input.style.outline = "none";
+    input.autofocus = true;
+    input.rows = 3;
+    input.cols = 20;
+
+    document.body.appendChild(input);
+    input.focus();
+
+    let cleaned = false;
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      if (input.parentNode) input.parentNode.removeChild(input);
+    }
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        textObj.text = input.value;
+        cleanup();
+      } else if (e.key === "Escape") {
+        cleanup();
+      }
+      // Shift+Enterで改行（textareaなのでデフォルトでOK）
+    });
+    input.addEventListener("blur", cleanup);
+  }
+
+  // Track HTML text elements
+  let htmlTextElements: HTMLElement[] = [];
+
+  // Function to create HTML text instead of PixiJS Text
+  function createHtmlTextElement(text: string, x: number, y: number) {
+    // Convert stage coordinates to screen coordinates
+    const screenX = x * app.stage.scale.x + app.stage.x;
+    const screenY = y * app.stage.scale.y + app.stage.y;
+
+    const textElement = document.createElement("div");
+    textElement.className = "html-text-element";
+    textElement.textContent = text;
+    textElement.style.position = "absolute";
+    textElement.style.left = `${screenX}px`;
+    textElement.style.top = `${screenY}px`;
+    textElement.style.transform = "translate(-50%, -50%)"; // Center the element
+    textElement.style.zIndex = "1000";
+    textElement.dataset.stageX = x.toString();
+    textElement.dataset.stageY = y.toString();
+
+    // Add event listeners
+    textElement.addEventListener("mousedown", (event) => {
+      if (event.button === 2) {
+        // Right-click
+        event.preventDefault();
+        selectedHtmlTextElement = textElement;
+        showContextMenu(event.clientX, event.clientY, "html-text");
+        event.stopPropagation();
+      } else if (event.detail >= 2) {
+        // Double-click
+        editHtmlTextElement(textElement);
+      }
+    });
+
+    document.body.appendChild(textElement);
+    htmlTextElements.push(textElement);
+
+    return textElement;
+  }
+
+  // Update HTML text elements' positions when stage transforms
+  function updateHtmlTextElementPositions() {
+    for (const element of htmlTextElements) {
+      const stageX = parseFloat(element.dataset.stageX || "0");
+      const stageY = parseFloat(element.dataset.stageY || "0");
+
+      // Convert stage coordinates to screen coordinates
+      const screenX = stageX * app.stage.scale.x + app.stage.x;
+      const screenY = stageY * app.stage.scale.y + app.stage.y;
+
+      element.style.left = `${screenX}px`;
+      element.style.top = `${screenY}px`;
+    }
+  }
+
+  // Edit HTML text element
+  let selectedHtmlTextElement: HTMLElement | null = null;
+
+  function editHtmlTextElement(textElement: HTMLElement) {
+    const input = document.createElement("textarea");
+    input.value = textElement.textContent || "";
+    input.style.position = "fixed";
+    input.style.left = textElement.style.left;
+    input.style.top = textElement.style.top;
+    input.style.zIndex = "2000";
+    input.style.fontSize = "20px";
+    input.style.padding = "4px";
+    input.style.borderRadius = "4px";
+    input.style.border = "1px solid #888";
+    input.style.background = "#222";
+    input.style.color = "#fff";
+    input.style.outline = "none";
+    input.autofocus = true;
+    input.rows = 3;
+    input.cols = 20;
+
+    document.body.appendChild(input);
+    input.focus();
+
+    let cleaned = false;
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      if (input.parentNode) input.parentNode.removeChild(input);
+    }
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        textElement.textContent = input.value;
+        cleanup();
+      } else if (e.key === "Escape") {
+        cleanup();
+      }
+    });
+
+    input.addEventListener("blur", cleanup);
+  }
+
+  // Delete HTML text element
+  function deleteHtmlTextElement(textElement: HTMLElement) {
+    if (textElement.parentNode) {
+      textElement.parentNode.removeChild(textElement);
+      htmlTextElements = htmlTextElements.filter((el) => el !== textElement);
+    }
+  }
+
+  // Duplicate HTML text element
+  function duplicateHtmlTextElement(textElement: HTMLElement) {
+    const stageX = parseFloat(textElement.dataset.stageX || "0");
+    const stageY = parseFloat(textElement.dataset.stageY || "0");
+
+    return createHtmlTextElement(
+      textElement.textContent || "",
+      stageX + 40,
+      stageY + 40
+    );
+  }
+
+  // Modify existing function to support HTML text creation
+  function showTextInput(x: number, y: number) {
+    const input = document.createElement("textarea");
+    input.style.position = "fixed";
+    input.style.left = `${x}px`;
+    input.style.top = `${y}px`;
+    input.style.zIndex = "2000";
+    input.style.fontSize = "20px";
+    input.style.padding = "4px";
+    input.style.borderRadius = "4px";
+    input.style.border = "1px solid #888";
+    input.style.background = "#222";
+    input.style.color = "#fff";
+    input.style.outline = "none";
+    input.autofocus = true;
+    input.rows = 3;
+    input.cols = 20;
+
+    document.body.appendChild(input);
+    input.focus();
+
+    let cleaned = false;
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      if (input.parentNode) input.parentNode.removeChild(input);
+    }
+
+    input.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (input.value.trim() !== "") {
+          if (selectedTool === "htmlText") {
+            // Use HTML div instead of PixiJS Text
+            const stageX = (x - app.stage.x) / app.stage.scale.x;
+            const stageY = (y - app.stage.y) / app.stage.scale.y;
+            createHtmlTextElement(input.value, stageX, stageY);
+          } else {
+            // Original PixiJS Text code
+            const style = new TextStyle({
+              fontFamily: "Arial",
+              fontSize: 100,
+              fill: 0xffffff,
+              align: "center",
+              wordWrap: true,
+              wordWrapWidth: 800,
+            });
+            // 改行をサポート
+            const textObj = new Text({ text: input.value, style });
+            textObj.resolution = 2;
+
+            // ステージ座標に変換
+            const rect = canvas.getBoundingClientRect();
+            const stageX = (x - app.stage.x) / app.stage.scale.x;
+            const stageY = (y - app.stage.y) / app.stage.scale.y;
+            textObj.x = stageX;
+            textObj.y = stageY;
+            textObj.anchor.set(0.5);
+            nodeContainer.addChild(textObj);
+            // 右クリックでテキストメニュー
+            textObj.eventMode = "static";
+            textObj.on("rightclick", (event) =>
+              handleTextNodeRightClick(textObj, event)
+            );
+          }
+          cleanup();
+        }
+      } else if (e.key === "Escape") {
+        cleanup();
+      }
+      // Shift+Enterで改行（textareaなのでデフォルトでOK）
+    });
+
+    // フォーカス外れたら消す
+    input.addEventListener("blur", cleanup);
+  }
+
+  async function duplicateNodeById(id: number) {
+    // Sprite取得
+    let sprite: Sprite | null = null;
+    // nodeContainer.children から該当idのspriteを探す
+    for (const child of nodeContainer.children) {
+      // Sprite型かつクリックイベントにidが紐付いているものを探す
+      if (child instanceof Sprite) {
+        // idを特定するには、field_coordinatesから座標を取得して比較する
+        const coordResult = db!.exec(
+          `SELECT x, y FROM field_coordinates WHERE id = ?;`,
+          [id]
+        );
+        if (coordResult.length > 0 && coordResult[0].values.length > 0) {
+          const [x, y] = coordResult[0].values[0] as [number, number];
+          if (Math.abs(child.x - x) < 1e-3 && Math.abs(child.y - y) < 1e-3) {
+            sprite = child;
+            break;
+          }
+        }
+      }
+    }
+    if (!sprite) return;
+
+    // サムネイル画像取得
+    const thumbnailResult = db!.exec(
+      `SELECT thumbnail_data FROM field_thumbnails WHERE id = ?;`,
+      [id]
+    );
+    if (
+      thumbnailResult.length === 0 ||
+      thumbnailResult[0].values.length === 0
+    ) {
+      return;
+    }
+    const base64Image = thumbnailResult[0].values[0][0] as string;
+
+    // 新しいノードIDを発行
+    db!.exec(`INSERT INTO field_nodes DEFAULT VALUES;`);
+    const newIdResult = db!.exec(`SELECT last_insert_rowid();`);
+    const newId = newIdResult[0].values[0][0] as number;
+
+    // 新しい座標（少しずらす）
+    const newX = sprite.x + 40;
+    const newY = sprite.y + 40;
+
+    // サムネイル・座標をDBに保存
+    db!.exec(
+      `INSERT INTO field_thumbnails (id, thumbnail_data) VALUES (?, ?);`,
+      [newId, base64Image]
+    );
+    db!.exec(`INSERT INTO field_coordinates (id, x, y) VALUES (?, ?, ?);`, [
+      newId,
+      newX,
+      newY,
+    ]);
+
+    // スプライトを追加
+    let texture: Texture = await Assets.load(base64Image);
+    const newSprite = new Sprite(texture);
+    newSprite.x = newX;
+    newSprite.y = newY;
+    newSprite.anchor.set(0.5);
+    newSprite.scale.set(sprite.scale.x, sprite.scale.y);
+    newSprite.eventMode = "static";
+    newSprite.addEventListener("click", (event) => {
+      handleFieldNodeClick(newId, newSprite, event);
+      event.stopPropagation();
+    });
+    newSprite.on("rightclick", (event) =>
+      handleNodeRightClick(newId, newSprite, event)
+    );
+    nodeContainer.addChild(newSprite);
+    console.log("Node duplicated:", newId);
+  }
+
+  // テキストノード複製
+  async function duplicateTextNode(textObj: Text) {
+    const newText = new Text({
+      text: textObj.text,
+      style: textObj.style,
+    });
+    newText.resolution = textObj.resolution;
+    newText.x = textObj.x + 40;
+    newText.y = textObj.y + 40;
+    newText.anchor.set(0.5);
+    newText.eventMode = "static";
+    newText.on("rightclick", (event) =>
+      handleTextNodeRightClick(newText, event)
+    );
+    nodeContainer.addChild(newText);
+  }
+
+  // テキストノード削除
+  function deleteTextNode(textObj: Text) {
+    if (textObj.parent) {
+      textObj.parent.removeChild(textObj);
+    }
+  }
+
+  // context-menuのクリック処理拡張
+  function handleContextMenuClick(item: string) {
+    if (item === "Duplicate" && selectedNodeId !== null) {
+      duplicateNodeById(selectedNodeId);
+      hideContextMenu();
+    }
+    if (item === "Duplicate Text" && selectedTextObj) {
+      duplicateTextNode(selectedTextObj);
+      hideContextMenu();
+    }
+    if (item === "Delete" && selectedTextObj) {
+      deleteTextNode(selectedTextObj);
+      selectedTextObj = null;
+      hideContextMenu();
+    }
+    if (item === "Duplicate HTML Text" && selectedHtmlTextElement) {
+      duplicateHtmlTextElement(selectedHtmlTextElement);
+      hideContextMenu();
+    }
+    if (item === "Delete HTML Text" && selectedHtmlTextElement) {
+      deleteHtmlTextElement(selectedHtmlTextElement);
+      selectedHtmlTextElement = null;
+      hideContextMenu();
+    }
+    // 他のメニューもここで処理可能
+  }
+</script>
+
+<div class="operation-panel">
+  <button
+    class="image-button {selectedTool === 'pointer' ? 'active' : ''}"
+    on:click={() => selectTool("pointer")}
+  >
+    <img src="/pointer.svg" alt="Pointer" />
+  </button>
+  <button
+    class="image-button {selectedTool === 'grab' ? 'active' : ''}"
+    on:click={() => selectTool("grab")}
+  >
+    <img src="/grab.svg" alt="Grab" />
+  </button>
+  <button
+    class="image-button {selectedTool === 'text' ? 'active' : ''}"
+    on:click={() => selectTool("text")}
+  >
+    <img src="/text.svg" alt="Text" />
+  </button>
+  <button
+    class="image-button {selectedTool === 'move' ? 'active' : ''}"
+    on:click={() => selectTool("move")}
+  >
+    <img src="/icons/move.svg" alt="Move" />
+  </button>
+  <div class="separator"></div>
+  <button
+    class="image-button {selectedTool === 'add' ? 'active' : ''}"
+    on:click={() => selectTool("add")}
+  >
+    <img src="/icons/add.svg" alt="Add" />
+  </button>
+  <div class="separator"></div>
+  <button
+    class="image-button {selectedTool === 'htmlText' ? 'active' : ''}"
+    on:click={() => selectTool("htmlText")}
+  >
+    <img src="/html-text.svg" alt="HTML Text" />
+  </button>
+  <div class="separator"></div>
+  <!-- Separator element -->
+  <button class="back-button" on:click={handleBackClick}> Back </button>
+</div>
+
+<canvas
+  bind:this={canvas}
+  style="width: 100%; height: 100%; display: block; cursor: default;"
+></canvas>
+
+<div
+  class="context-menu {contextMenuVisible ? 'visible' : ''}"
+  style="top: {contextMenuY}px; left: {contextMenuX}px;"
+>
+  {#if contextMenuType === "stage"}
+    <div class="menu-item">Create Node</div>
+    <div class="menu-item">Copy Canvas Image</div>
+  {/if}
+  {#if contextMenuType === "node"}
+    <div class="menu-item" on:click={() => handleContextMenuClick("Duplicate")}>
+      Duplicate Field
+    </div>
+    <div class="menu-item">Delete All Connections</div>
+    <div class="menu-item">Delete</div>
+  {/if}
+  {#if contextMenuType === "text"}
+    <div
+      class="menu-item"
+      on:click={() => handleContextMenuClick("Duplicate Text")}
+    >
+      Duplicate Text
+    </div>
+    <div class="menu-item" on:click={() => handleContextMenuClick("Delete")}>
+      Delete
+    </div>
+  {/if}
+  {#if contextMenuType === "html-text"}
+    <div
+      class="menu-item"
+      on:click={() => handleContextMenuClick("Duplicate HTML Text")}
+    >
+      Duplicate HTML Text
+    </div>
+    <div
+      class="menu-item"
+      on:click={() => handleContextMenuClick("Delete HTML Text")}
+    >
+      Delete HTML Text
+    </div>
+  {/if}
+</div>
+
+<style>
+  .operation-panel {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 60px;
+    background-color: rgba(
+      51,
+      51,
+      51,
+      0.8
+    ); /* Semi-transparent dark background */
+    backdrop-filter: blur(5px); /* Apply blur effect to the background */
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); /* Adjust shadow for dark theme */
+    border-radius: 5px;
+    z-index: 500;
+
+    align-items: center;
+  }
+
+  .image-button {
+    width: 50px;
+    height: 50px;
+    margin: 5px 0;
+    cursor: pointer;
+    border: none;
+    background-color: #444444; /* Dark button background */
+    border: 1px solid #555555; /* Dark border */
+    border-radius: 5px;
+    transition:
+      background-color 0.3s,
+      border-color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .operation-panel button:hover {
+    background-color: #555555; /* Slightly lighter hover effect */
+  }
+
+  .operation-panel button.active {
+    background-color: #666666; /* Active button background */
+    border-color: #888888; /* Active button border */
+  }
+
+  .operation-panel button img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .back-button {
+    width: auto;
+    padding: 5px 7px;
+    margin-top: 5px;
+    cursor: pointer;
+    background-color: transparent;
+    color: #ffffff; /* White text */
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: center;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3); /* Add shadow for emphasis */
+    transition:
+      background-color 0.3s,
+      box-shadow 0.3s;
+  }
+
+  .back-button:hover {
+    background-color: #333333; /* Slightly lighter hover effect */
+    box-shadow: 0px 6px 8px rgba(0, 0, 0, 0.5); /* Enhanced shadow on hover */
+  }
+
+  .separator {
+    width: 100%;
+    height: 1px;
+    background-color: #555555; /* Dark separator color */
+    margin: 5px 0;
+  }
+
+  .context-menu {
+    position: absolute;
+    background-color: #333333;
+    color: #cccccc;
+    border: 1px solid #555555;
+    border-radius: 5px;
+    font-size: 14px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    padding: 5px;
+    display: none;
+    z-index: 1001;
+  }
+
+  .context-menu.visible {
+    display: block;
+  }
+
+  .menu-item {
+    padding: 0px 10px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .menu-item:hover {
+    background-color: #444444;
+  }
+
+  .html-text-element {
+    color: white;
+    font-size: 16px;
+    padding: 4px 8px;
+    pointer-events: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    max-width: 300px;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Provide a subtle indicator when hovering HTML text */
+  .html-text-element:hover {
+    background-color: rgba(30, 30, 30, 0.7);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+  }
+</style>

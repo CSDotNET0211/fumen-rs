@@ -2,7 +2,6 @@
   import { onDestroy, onMount } from "svelte";
   import Panel from "../panel.svelte";
   import { invoke } from "@tauri-apps/api/core";
-  import { get } from "svelte/store";
   import { Tetromino } from "tetris/src/tetromino";
   import { emitTo, listen } from "@tauri-apps/api/event";
   import { TetrisEnv } from "tetris/src/tetris_env";

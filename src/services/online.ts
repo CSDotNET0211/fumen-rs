@@ -1,7 +1,7 @@
 import { io, type Socket } from "socket.io-client";
 import { gameConfig } from "../app/stores/config";
 import { get, writable, type Writable } from "svelte/store";
-import { fields } from "../app/stores/data";
+import { } from "../app/stores/data";
 import { TetrisEnv } from "tetris/src/tetris_env";
 
 type CursorStruct = { x: number; y: number };

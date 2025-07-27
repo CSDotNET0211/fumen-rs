@@ -12,7 +12,10 @@
     OverlayFieldType,
   } from "../field";
   import { tetrominoBlockTextures } from "../modules/tetrisBoard.svelte";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
 
   let unlisten: any;
 
@@ -21,7 +24,7 @@
       update_next(event.payload as unknown as Tetromino[]);
     });
 
-    let next = get(fields)[get(fieldIndex)].next;
+    let next = get(currentFieldNode)!.next;
     update_next(next);
   });
 

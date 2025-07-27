@@ -5,7 +5,10 @@
   import type { TetrisEnv } from "tetris/src/tetris_env";
   import { emitTo, listen } from "@tauri-apps/api/event";
   import { currentOverlayField, OverlayFieldType } from "../field";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
   import {
     convertFromTetromino,
     convertToTetromino,
@@ -29,13 +32,13 @@
   function updateInputValue(type: OverlayFieldType) {
     //holdかnext片方を開いた状態からもう一方を開くとonmountが呼ばれないため
     if (type === OverlayFieldType.TetrominoSelectHold) {
-      let val = convertFromTetromino(get(fields)[get(fieldIndex)].hold);
+      let val = convertFromTetromino(get(currentFieldNode)!.hold);
       input_value.set(val);
 
       const inputElement = document.getElementById("tetromino-input");
       inputElement?.focus();
     } else if (type === OverlayFieldType.TetrominoSelectNext) {
-      let val = get(fields)[get(fieldIndex)].next.map((item) =>
+      let val = get(currentFieldNode)!.next.map((item) =>
         convertFromTetromino(item)
       );
 
@@ -45,14 +48,6 @@
       inputElement?.focus();
     }
   }
-  /*listen<string>("onupdatenext", (event) => {
-		if (event.payload != null) {
-			let value = get(fields)[get(field_index)].next.map((item) =>
-				convertFromTetromino(item),
-			);
-			input_value.set(value.join(""));
-		}
-	});*/
 
   onMount(() => {
     const inputElement = document.getElementById("tetromino-input");
@@ -85,16 +80,15 @@
     if (get(currentOverlayField) === OverlayFieldType.TetrominoSelectHold) {
       let type = convertToTetromino(input.toLowerCase());
 
-      fields.update((tetris_fields: TetrisEnv[]) => {
-        tetris_fields[get(fieldIndex)].hold = type;
-
-        return tetris_fields;
+      currentFieldNode.update((env: TetrisEnv | null) => {
+        env!.hold = type;
+        return env;
       });
 
       history.update((history: History) => {
         history.add(
           "Hold",
-          get(fields)[get(fieldIndex)].clone(),
+          get(currentFieldNode)!.clone(),
           input.toLowerCase()
         );
         return history;
@@ -107,16 +101,16 @@
         .split("")
         .map((char: string) => convertToTetromino(char));
 
-      fields.update((tetris_fields: TetrisEnv[]) => {
-        tetris_fields[get(fieldIndex)].next = types;
+      currentFieldNode.update((env: TetrisEnv | null) => {
+        env!.next = types;
 
-        return tetris_fields;
+        return env;
       });
 
       history.update((history: History) => {
         history.add(
           "Next",
-          (get(fields)[get(fieldIndex)] as TetrisEnv).clone(),
+          get(currentFieldNode)!.clone(),
           input.toLowerCase()
         );
         return history;

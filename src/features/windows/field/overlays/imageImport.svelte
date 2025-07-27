@@ -29,7 +29,10 @@
     fumenImage,
     teachableMachineModel,
   } from "../../../../app/stores/misc";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
   import { t } from "../../../../translations/translations";
   import { ImageProcessor } from "./imageProcessor";
 
@@ -286,7 +289,7 @@
       return;
     }
 
-    const field = get(fields)[get(fieldIndex)].board;
+    const field = get(currentFieldNode)!.board;
     for (let i = 0; i < predictions.length; i++) {
       const prediction = predictions[i].toLowerCase();
       switch (prediction) {
@@ -331,9 +334,9 @@
       field[i] = Tetromino.Empty;
     }
 
-    fields.update((tetris_fields: TetrisEnv[]) => {
-      tetris_fields[get(fieldIndex)].board = field;
-      return tetris_fields;
+    currentFieldNode.update((env: TetrisEnv | null) => {
+      env!.board = field;
+      return env;
     });
 
     // console.log("predictions", predictions);

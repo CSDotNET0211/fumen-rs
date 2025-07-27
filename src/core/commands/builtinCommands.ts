@@ -14,10 +14,12 @@ import { ImageProcessor } from "../../features/windows/field/overlays/imageProce
 import { Image as TauriImage } from "@tauri-apps/api/image";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { currentField, currentOverlayField, FieldType, OverlayFieldType } from "../../features/windows/field/field.ts";
-import { fieldIndex, fields } from "../../app/stores/data.ts";
+import { currentFieldIndex, currentFieldNode } from "../../app/stores/data.ts";
 import { getCanvasImage } from "../../features/windows/field/modules/tetrisBoard.svelte";
 import { history } from "../../app/stores/history.ts";
 import { fumenImage, fumenPages, snapshot } from "../../app/stores/misc.ts";
+import { FieldNode, resetDatabase } from "../../features/windows/canvas/node.ts";
+import { currentWindow, WindowType } from "../../app/stores/window.ts";
 
 
 
@@ -49,23 +51,33 @@ export function registerCommands() {
 				if (!confirmed) return;
 			}
 
-			fields.update((currentFields) => {
-				return {
-					...currentFields,
-					[0]: new TetrisEnv(),
-				};
-			});
+			/*			fields.update((currentFields) => {
+							return {
+								...currentFields,
+								[0]: new TetrisEnv(),
+							};
+						});*/
+
+			resetDatabase();
+			FieldNode.insertDB(new TetrisEnv());
+			//	addNodeToMySQL(new TetrisEnv());
+			currentFieldIndex.set(1);
+			//indexが1から1の場合は更新されないから手動で
+			currentFieldNode.set(new TetrisEnv());
 
 			history.set(new History());
 			history.update((history: History) => {
 				history.add(
 					get(t)("common.history-base"),
-					get(fields)[get(fieldIndex)].clone(),
+					get(currentFieldNode)!.clone(),
 					"",
 				);
 				return history;
 			});
+
+
 			currentField.set(FieldType.TetrisEdit);
+			currentWindow.set(WindowType.Field);
 			snapshot.set([]);
 		}));
 
@@ -112,16 +124,17 @@ export function registerCommands() {
 					const blob = await response.blob();
 					const arrayBuffer = await blob.arrayBuffer();
 					const uint8Array = new Uint8Array(arrayBuffer);
-					const env = TetrisEnv.deserialize({
+					const envMap = TetrisEnv.deserialize({
 						buffer: uint8Array,
 						bufferIndex: 0,
 					});
 
 					await commands.executeCommand("fumen.new", false);
 
-					fields.update(() => {
-						return [env];
-					});
+
+					console.log("Loaded TetrisEnv from file:", envMap);
+					fields.set(envMap);
+					currentFieldIndex.set(0);
 
 					currentField.set(FieldType.TetrisEdit);
 				} else {
@@ -145,7 +158,7 @@ export function registerCommands() {
 			});
 
 			if (path !== null) {
-				let bin = get(fields)[get(fieldIndex)].serialize();
+				let bin = get(currentFieldNode)!.serialize();
 				await writeFile(path, bin);
 			}
 		}));
@@ -222,7 +235,7 @@ export function registerCommands() {
 			let fieldStr = "";
 			for (let y = 0; y < 23; y++) {
 				for (let x = 0; x < 10; x++) {
-					switch (get(fields)[get(fieldIndex)].board[y * 10 + x]) {
+					switch (get(currentFieldNode)!.board[y * 10 + x]) {
 						case Tetromino.S:
 							fieldStr += "S";
 							break;

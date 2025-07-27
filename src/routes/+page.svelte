@@ -19,7 +19,7 @@
     WindowFadeDuration,
     WindowType,
   } from "../app/stores/window.ts";
-  import { fieldIndex } from "../app/stores/data.ts";
+  import { currentFieldIndex } from "../app/stores/data.ts";
   import { commands } from "../core/commands/commands.ts";
   import MenuBar from "../features/common/menu/menuBar.svelte";
   import StatusBar from "../features/common/status/statusBar.svelte";
@@ -38,6 +38,9 @@
   import { reloadMenuItems } from "../features/common/menu/menu.ts";
   import { reloadStatusPanels } from "../features/common/status/status.ts";
   import { initialize } from "../core/commands/newCommands.ts";
+  import { BSON } from "bson";
+  import { unknownThumbnailBase64 } from "../app/stores/misc.ts";
+  import { initializeDatabase } from "../features/windows/canvas/node.ts";
 
   window.IS_WEB_MODE = false;
 
@@ -90,20 +93,35 @@
     await registerShortcuts();
     await initializeTeachableMachine();
     await initialize();
+    await initializeDatabase();
     reloadMenuItems();
     reloadStatusPanels();
+
+    const response = await fetch("./static/unknown.png");
+    const blob = await response.blob();
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      unknownThumbnailBase64.set(reader.result as string);
+    };
+    reader.readAsDataURL(blob);
 
     console.log($t("common.console-warning"), "color: red; font-size: 2em;");
 
     //await new Promise((resolve) => setTimeout(resolve, 1000));
     currentWindow.set(WindowType.Field);
-    fieldIndex.set(0);
     await commands.executeCommand("fumen.new", false);
+
+    /*
+    let result: Uint8Array = BSON.serialize(get(currentFieldNode)!);
+    console.log(result);
+    console.log("Byte size:", result.byteLength);
+    const doc = BSON.deserialize(result);
+    console.log(doc);*/
 
     window.addEventListener("contextmenu", disableContextMenu);
     window.addEventListener("keydown", handleShortcutInternal);
     window.addEventListener("mouseup", handleMouseButton);
-    currentWindow;
+    //currentWindow;
 
     console.log(await invoke("get_args"));
   });

@@ -16,7 +16,10 @@
   import { getOffScreenCanvasImage } from "../modules/tetrisBoard.svelte";
   import { history } from "../../../../app/stores/history";
   import type { History } from "../../../../history";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
   import { t } from "../../../../translations/translations";
   import { fumenPages } from "../../../../app/stores/misc";
 
@@ -112,15 +115,17 @@
 
     let field = getFieldFromFumenPage(internalFumenPages, selectedPage);
 
-    fields.update((fields) => {
-      fields[get(fieldIndex)].board = field;
-      return fields;
+    currentFieldNode.update((env) => {
+      if (env != null) {
+        env.board = field;
+      }
+      return env;
     });
 
     history.update((history: History) => {
       history.add(
         $t("common.history-paste-fumen"),
-        get(fields)[get(fieldIndex)].clone(),
+        get(currentFieldNode)!.clone(),
         ""
       );
       return history;

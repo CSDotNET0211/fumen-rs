@@ -244,7 +244,7 @@ async fn search_bot_best(
         let lib = load_library(&bot_name)?;
         let lib_lock = lib.lock().unwrap();
 
-        println!("Loading bot: assets/bot/{}.dll", bot_name);
+        // println!("Loading bot: assets/bot/{}.dll", bot_name);
 
         let cc_search: libloading::Symbol<
             unsafe extern "C" fn(
@@ -274,7 +274,7 @@ async fn search_bot_best(
 
         let mut result: [u8; 9] = [0; 9];
 
-        dbg!(&field_c, &hold_c, b2b, combo, &pieces_c, incoming);
+        //  dbg!(&field_c, &hold_c, b2b, combo, &pieces_c, incoming);
 
         cc_search(
             field_c.as_ptr(),

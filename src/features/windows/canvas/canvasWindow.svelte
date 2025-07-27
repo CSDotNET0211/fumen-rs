@@ -1,256 +1,491 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
-  import { Application, Container, Graphics } from "pixi.js";
-  import { circIn } from "svelte/easing";
-  import { math } from "@tensorflow/tfjs";
+  import { onMount, onDestroy } from "svelte";
+  import { currentWindow, WindowType } from "../../../app/stores/window";
+  import { currentFieldIndex } from "../../../app/stores/data";
+  import { FieldNode, TextNode, Node as CanvasNode } from "./node";
+  import { canvasView } from "../../../app/stores/data";
+  import { get } from "svelte/store";
+  import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./const";
+  import { listen } from "@tauri-apps/api/event";
+  import { unknownThumbnailBase64 } from "../../../app/stores/misc";
+  import ContextMenu, { open } from "./contextMenu.svelte";
+  import PropertiesPanel from "./PropertiesPanel.svelte";
+  import { TetrisEnv } from "tetris/src/tetris_env";
 
-  let canvas: HTMLCanvasElement;
-  let app: Application;
-  let gridContainer: Container;
-  const baseGridSize = 40;
-  const DEFAULT_GRID_WIDTH = 800;
-  const DEFAULT_GRID_HEIGHT = 600;
-
+  let container: HTMLDivElement;
+  let canvasInner: HTMLDivElement;
   let isDragging = false;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  const scaleSpeed = 0.1;
+  let lastX = 0;
+  let lastY = 0;
 
-  function onWheel(e: WheelEvent) {
-    e.preventDefault();
-    const s = app.stage.scale.x;
-    const tx = (e.clientX - app.stage.x) / s;
-    const ty = (e.clientY - app.stage.y) / s;
+  // 追加: translate用のオフセット
+  let offsetX = 0;
+  let offsetY = 0;
 
-    const deltaScale =
-      -1 * Math.max(-1, Math.min(1, e.deltaY)) * scaleSpeed * s;
-    const newScale = s + deltaScale;
+  let scale = 1;
+  const minScale = 0.2;
+  const maxScale = 3;
 
-    app.stage.x = -tx * newScale + e.clientX;
-    app.stage.y = -ty * newScale + e.clientY;
-    app.stage.scale.x = newScale;
-    app.stage.scale.y = newScale;
+  // ノード管理
+  let fieldNodes: Map<number, FieldNode> = new Map();
+  let textNodes: Map<number, TextNode> = new Map();
 
-    drawGrid();
-  }
+  // canvas-innerのサイズ
 
   function onMouseDown(e: MouseEvent) {
-    isDragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    canvas.style.cursor = "grab"; // Change cursor to grab
+    if (e.button === 1) {
+      isDragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      document.body.style.cursor = "grabbing";
+      e.preventDefault();
+    }
+  }
+
+  function saveCanvasView() {
+    canvasView.set({
+      x: offsetX,
+      y: offsetY,
+      zoom: scale,
+    });
   }
 
   function onMouseMove(e: MouseEvent) {
-    if (!isDragging) return;
-
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-
-    app.stage.x += dx;
-    app.stage.y += dy;
-
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-  }
-
-  function onMouseUp() {
-    isDragging = false;
-    canvas.style.cursor = "pointer"; // Change cursor back to pointer
-  }
-
-  function createGrid(
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number,
-    gridStep: number,
-    lineWidth: number,
-    alpha: number
-  ): Graphics {
-    const grid = new Graphics();
-    // Vertical lines
-    for (let x = startX; x <= endX; x += gridStep) {
-      grid
-        .moveTo(x, startY - baseGridSize)
-        .lineTo(x, endY)
-        .stroke({ color: 0x333333, width: lineWidth, alpha });
+    if (isDragging) {
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      offsetX += dx;
+      offsetY += dy;
+      lastX = e.clientX;
+      lastY = e.clientY;
     }
-
-    // Horizontal lines
-    for (let y = startY; y <= endY; y += gridStep) {
-      grid
-        .moveTo(startX - baseGridSize, y)
-        .lineTo(endX, y)
-        .stroke({ color: 0x333333, width: lineWidth, alpha });
-    }
-
-    return grid;
   }
 
-  function drawGrid() {
-    gridContainer.removeChildren();
-
-    const subGridSize = baseGridSize / 4;
-
-    // baseが40のときalphaが1、0のとき0になるように補正
-    //const correctedAlpha = Math.max(0, Math.min(1, base / 40));
-    //const alpha = correctedAlpha;
-
-    const mainGrid = createGrid(
-      0,
-      0,
-      DEFAULT_GRID_WIDTH,
-      DEFAULT_GRID_HEIGHT,
-      baseGridSize,
-      1,
-      0.3
-    );
-    const subGrid = createGrid(
-      0,
-      0,
-      DEFAULT_GRID_WIDTH,
-      DEFAULT_GRID_HEIGHT,
-      subGridSize,
-      0.5,
-      0.3
-    );
-
-    gridContainer.addChild(mainGrid);
-    gridContainer.addChild(subGrid);
+  function onMouseUp(e: MouseEvent) {
+    if (isDragging && e.button === 1) {
+      isDragging = false;
+      document.body.style.cursor = "";
+      saveCanvasView();
+    }
   }
 
-  function createBoardNodes() {
-	//
+  function onWheel(e: WheelEvent) {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      // マウス位置をキャンバス座標系に変換
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      // 現在のズーム・オフセットでのキャンバス上の座標
+      const canvasX = (mouseX - offsetX) / scale;
+      const canvasY = (mouseY - offsetY) / scale;
+
+      // const prevScale = scale;
+      const delta = -e.deltaY || -e.detail;
+      const zoomIntensity = 0.05;
+      if (delta > 0) {
+        scale = Math.min(maxScale, scale + zoomIntensity);
+      } else {
+        scale = Math.max(minScale, scale - zoomIntensity);
+      }
+
+      // 新しいズームで、同じcanvasX/canvasYがマウス位置に来るようにオフセットを補正
+      offsetX = mouseX - canvasX * scale;
+      offsetY = mouseY - canvasY * scale;
+
+      saveCanvasView();
+    }
   }
 
-  function drawLinesOnNode(node: Graphics) {
-    node.lineStyle(2, 0x000000, 1); // Black lines with width 2
-    for (let x = 0; x <= DEFAULT_GRID_WIDTH; x += baseGridSize) {
-      node.moveTo(x, 0).lineTo(x, DEFAULT_GRID_HEIGHT);
-    }
-    for (let y = 0; y <= DEFAULT_GRID_HEIGHT; y += baseGridSize) {
-      node.moveTo(0, y).lineTo(DEFAULT_GRID_WIDTH, y);
-    }
+  function clamp(val: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, val));
+  }
+
+  function handleContainerDblClick(e: MouseEvent) {
+    if (!canvasInner) return;
+    const containerRect = container.getBoundingClientRect();
+    let x = (e.clientX - containerRect.left - offsetX) / scale;
+    let y = (e.clientY - containerRect.top - offsetY) / scale;
+    x = clamp(x, 0, CANVAS_WIDTH / scale);
+    y = clamp(y, 0, CANVAS_HEIGHT / scale);
+    TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
   }
 
   onMount(async () => {
-    app = new Application();
-    await app.init({
-      view: canvas,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      background: "#ff0000", // Set a valid background color
-      antialias: true,
-      resizeTo: window,
-    });
+    document.addEventListener("fieldNodeChanged", onFieldNodeChanged);
+    document.addEventListener("textNodeChanged", onTextNodeChanged);
 
-    gridContainer = new Container();
-    app.stage.addChild(gridContainer);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    if (container) {
+      container.addEventListener("wheel", onWheel, { passive: false });
+    }
 
-    drawGrid();
+    //サムネの更新が必要な場合は更新
+    await FieldNode.updateAllThumbnailsDB();
+    refreshAllFieldNodes();
+    refreshAllTextNodes();
+    // TextNode, GroupNode, ArrowNodeのロードも必要ならここで追加
 
-    //const boardNode = createBoardNode();
-    //drawLinesOnNode(boardNode);
-    //app.stage.addChild(boardNode);
+    // canvasViewから復元
+    if (get(canvasView) == null) {
+      canvasView.set({
+        x: (container.clientWidth - CANVAS_WIDTH) / 2,
+        y: (container.clientHeight - CANVAS_HEIGHT) / 2,
+        zoom: 1,
+      });
+    }
+    offsetX = get(canvasView)?.x ?? 0;
+    offsetY = get(canvasView)?.y ?? 0;
+    scale = get(canvasView)?.zoom ?? 1;
 
-    canvas.addEventListener("wheel", onWheel, { passive: false });
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+    // After loading nodes, attach context menu
+    // textNodes.forEach(attachContextMenuToNode);
+    // fieldNodes.forEach(attachContextMenuToNode);
   });
 
   onDestroy(() => {
-    canvas.removeEventListener("wheel", onWheel);
-    canvas.removeEventListener("mousedown", onMouseDown);
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-    app.destroy(true, { children: true });
+    document.removeEventListener("fieldNodeChanged", onFieldNodeChanged);
+    document.removeEventListener("textNodeChanged", onTextNodeChanged);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    if (container) {
+      container.removeEventListener("wheel", onWheel);
+    }
   });
 
-  let selectedTool = "pointer";
+  /// すべての盤面ノードを再描画
+  function refreshAllFieldNodes() {
+    fieldNodes.forEach((n) => n.element?.parentNode?.removeChild(n.element!));
+    fieldNodes.clear();
 
-  function selectTool(tool: string) {
-    selectedTool = tool;
-    console.log("Selected tool:", tool);
+    const result = FieldNode.getAllFromDB();
+    result.forEach((node) => {
+      // 新規ノードを生成
+      const x = clamp(node.x!, 0, CANVAS_WIDTH);
+      const y = clamp(node.y!, 0, CANVAS_HEIGHT);
+      const newNode = new FieldNode(
+        x,
+        y,
+        node.id,
+        node.thumbnail ?? get(unknownThumbnailBase64)
+      );
+      newNode.render();
+      canvasInner.appendChild(newNode.element!);
+      fieldNodes.set(newNode.id, newNode);
+    });
+  }
+  function onFieldNodeChanged(event: Event) {
+    let customEvent = event as CustomEvent;
+    switch (customEvent.detail.action) {
+      case "created":
+        const node = new FieldNode(
+          customEvent.detail.x ??
+            (get(canvasView)?.x ?? CANVAS_WIDTH / 2) +
+              container.clientWidth / 2,
+          customEvent.detail.y ??
+            (get(canvasView)?.y ?? CANVAS_HEIGHT / 2) +
+              container.clientHeight / 2,
+          customEvent.detail.id,
+          customEvent.detail.thumbnail ?? get(unknownThumbnailBase64)
+        );
+        node.render();
+        canvasInner.appendChild(node.element!);
+        fieldNodes.set(customEvent.detail.id, node);
+
+        if (customEvent.detail.thumbnail === undefined) {
+          // サムネが未指定の場合はデフォルトのサムネを設定
+          FieldNode.updateThumbnailDB(customEvent.detail.id);
+          //          (node.element as HTMLImageElement)!.src = "./static/unknown.png";
+          // node.setThumbnail(get(unknownThumbnailBase64));
+        } else {
+          (node.element as HTMLImageElement)!.src =
+            customEvent.detail.thumbnail;
+        }
+
+        //   fieldNodeThumbnailUpdate(customEvent.detail.id);
+        // fieldNodeCoordinatesUpdate(customEvent.detail.id);
+        break;
+      case "updatedThumbnail":
+        const element = fieldNodes.get(customEvent.detail.id)
+          ?.element as HTMLImageElement;
+
+        if (element) {
+          element.src = customEvent.detail.thumbnail;
+        }
+
+        break;
+
+      case "updatedCoordinates":
+        const updatedNode = fieldNodes.get(customEvent.detail.id);
+        if (updatedNode) {
+          updatedNode.setPosition(customEvent.detail.x, customEvent.detail.y);
+          //updatedNode.render(canvasInner);
+          // fieldNodeCoordinatesUpdate(customEvent.detail.id);
+        }
+        break;
+
+      case "updated":
+        //	const updatedFieldNode = fieldNodes.get(customEvent.detail.id);
+        //	if (updatedFieldNode) {
+        //	  updatedFieldNode.setThumbnail(customEvent.detail.thumbnail);
+        // fieldNodeThumbnailUpdate(customEvent.detail.id);
+        //	}
+        break;
+
+      case "deleted":
+        fieldNodes.get(customEvent.detail.id)?.element?.remove();
+        fieldNodes.delete(customEvent.detail.id);
+        break;
+    }
+
+    /*	getAllFieldNodes().forEach((node) => {
+
+	});
+
+    //生成があった場合は位置とサムネ更新
+    //id渡す特定のやつで
+    fieldNodeThumbnailUpdateAll();
+    fieldNodeCoordinatesUpdateAll();
+	*/
+  }
+
+  function onTextNodeChanged(event: Event) {
+    let customEvent = event as CustomEvent;
+    switch (customEvent.detail.action) {
+      case "created":
+        const textNode = new TextNode(
+          customEvent.detail.id,
+          customEvent.detail.x ?? get(canvasView)!.x,
+          customEvent.detail.y ?? get(canvasView)!.y,
+          customEvent.detail.text ?? "",
+          customEvent.detail.size ?? 50
+        );
+        textNode.render();
+        console.log(canvasInner);
+        canvasInner.appendChild(textNode.element!);
+        textNodes.set(textNode.id, textNode);
+        TextNode.handleTextNodeEdit(textNode);
+        break;
+      case "updated":
+        console.log("updated", customEvent.detail);
+
+        //TODO:render関数と似たような感じの方がいいかも
+        const updatedTextNode = textNodes.get(customEvent.detail.id);
+        if (updatedTextNode) {
+          updatedTextNode.text = customEvent.detail.text;
+          updatedTextNode.size = customEvent.detail.size;
+          updatedTextNode.setPosition(
+            customEvent.detail.x ?? updatedTextNode.getX(),
+            customEvent.detail.y ?? updatedTextNode.getY()
+          );
+          updatedTextNode.color =
+            customEvent.detail.color ?? updatedTextNode.color;
+          updatedTextNode.backgroundColor =
+            customEvent.detail.backgroundColor ??
+            updatedTextNode.backgroundColor;
+
+          updatedTextNode.render(); // ここで　elementを再生成・更新
+        }
+        break;
+      case "deleted":
+        textNodes.get(customEvent.detail.id)?.element?.remove();
+        textNodes.delete(customEvent.detail.id);
+        break;
+    }
+  }
+
+  function refreshAllTextNodes() {
+    textNodes.forEach((n) => n.element?.parentNode?.removeChild(n.element!));
+    textNodes.clear();
+
+    const result = TextNode.getAllFromDB();
+    result.forEach((node) => {
+      // 新規ノードを生成
+      const x = clamp(node.x, 0, CANVAS_WIDTH);
+      const y = clamp(node.y, 0, CANVAS_HEIGHT);
+      const newNode = new TextNode(node.id, x, y, node.text, node.size);
+      newNode.render();
+      canvasInner.appendChild(newNode.element!);
+      textNodes.set(newNode.id, newNode);
+      // TextNode.handleTextNodeEdit(newNode);
+    });
+  }
+
+  function handleCanvasRightClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const containerRect = container.getBoundingClientRect();
+    const canvasX = (e.clientX - containerRect.left - offsetX) / scale;
+    const canvasY = (e.clientY - containerRect.top - offsetY) / scale;
+
+    open({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          name: "新規",
+          submenu: [
+            {
+              name: "盤面",
+              action: () => {
+                // Create new field at clicked position
+                const x = clamp(canvasX, 0, CANVAS_WIDTH);
+                const y = clamp(canvasY, 0, CANVAS_HEIGHT);
+                // Assuming FieldNode has a static method to create new field
+                // You may need to adjust this based on your actual implementation
+                FieldNode.insertDB(new TetrisEnv(), { x, y });
+              },
+            },
+            {
+              name: "テキスト",
+              action: () => {
+                const x = clamp(canvasX, 0, CANVAS_WIDTH);
+                const y = clamp(canvasY, 0, CANVAS_HEIGHT);
+                TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
+              },
+            },
+          ],
+        },
+        {
+          name: "canvasを保存",
+          action: () => {
+            saveCanvasView();
+          },
+        },
+        {
+          name: "カメラをリセット",
+          action: () => {
+            offsetX = (container.clientWidth - CANVAS_WIDTH) / 2;
+            offsetY = (container.clientHeight - CANVAS_HEIGHT) / 2;
+            scale = 1;
+            saveCanvasView();
+          },
+        },
+      ],
+    });
+  }
+
+  function handleContainerRightClick(e: MouseEvent) {
+    e.preventDefault();
+
+    open({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          name: "カメラをリセット",
+          action: () => {
+            offsetX = (container.clientWidth - CANVAS_WIDTH) / 2;
+            offsetY = (container.clientHeight - CANVAS_HEIGHT) / 2;
+            scale = 1;
+            saveCanvasView();
+          },
+        },
+      ],
+    });
   }
 </script>
 
-<div class="operation-panel">
-  <button
-    class={selectedTool === "pointer" ? "active" : ""}
-    on:click={() => selectTool("pointer")}
-  >
-    <img src="/pointer.svg" alt="Pointer" />
-  </button>
-  <button
-    class={selectedTool === "grab" ? "active" : ""}
-    on:click={() => selectTool("grab")}
-  >
-    <img src="/grab.svg" alt="Grab" />
-  </button>
-  <button
-    class={selectedTool === "text" ? "active" : ""}
-    on:click={() => selectTool("text")}
-  >
-    <img src="/text.svg" alt="Text" />
-  </button>
-  <button
-    class={selectedTool === "move" ? "active" : ""}
-    on:click={() => selectTool("move")}
-  >
-    <img src="/icons/move.svg" alt="Move" />
-  </button>
+<div
+  bind:this={container}
+  class="canvas-container"
+  on:mousedown={onMouseDown}
+  tabindex="0"
+  on:dblclick={handleContainerDblClick}
+  on:contextmenu={handleContainerRightClick}
+>
+  <div
+    bind:this={canvasInner}
+    class="canvas-inner"
+    style="transform: translate({offsetX}px, {offsetY}px) scale({scale}); transform-origin: 0 0; width: {CANVAS_WIDTH}px; height: {CANVAS_HEIGHT}px;"
+    on:contextmenu={handleCanvasRightClick}
+  ></div>
 </div>
 
-<canvas
-  bind:this={canvas}
-  style="width: 100%; height: 100%; display: block; cursor: default;"
-></canvas>
+<ContextMenu></ContextMenu>
+
+<PropertiesPanel />
 
 <style>
-  .operation-panel {
+  .canvas-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* ← scrollからhiddenに変更 */
+    position: relative;
+    background: black;
+  }
+
+  .canvas-inner {
     position: absolute;
-    left: 10px;
-    top: 10px;
-    width: 60px;
-    background-color: #333333; /* Dark background */
-    display: flex;
-    flex-direction: column;
-    padding: 5px;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); /* Adjust shadow for dark theme */
-    border-radius: 5px;
-    z-index: 1000;
+    background: #1c1c1c;
+    /* width/heightはJSで指定 */
   }
 
-  .operation-panel button {
-    width: 50px;
-    height: 50px;
-    margin: 5px 0;
-    cursor: pointer;
-    border: none;
-    background-color: #444444; /* Dark button background */
-    border: 1px solid #555555; /* Dark border */
-    border-radius: 5px;
-    transition:
-      background-color 0.3s,
-      border-color 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  :global(.center-text) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+    user-select: none;
+    pointer-events: none;
   }
 
-  .operation-panel button:hover {
-    background-color: #555555; /* Slightly lighter hover effect */
+  :global(.node-thumbnail) {
+    width: 300px;
+    object-fit: contain;
+    border: 1px solid #444;
+    background: #222;
+    border-radius: 8px;
   }
 
-  .operation-panel button.active {
-    background-color: #666666; /* Active button background */
-    border-color: #888888; /* Active button border */
+  /* カスタムスクロールバー */
+  .canvas-container::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .canvas-container::-webkit-scrollbar-track {
+    background: #1c1c1c;
+  }
+  .canvas-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+  .canvas-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
   }
 
-  .operation-panel button img {
-    width: 30px;
-    height: 30px;
+  :global(.canvas-text) {
+    min-width: 40px;
+    min-height: 24px;
+    position: absolute;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 18px;
+    white-space: pre-wrap;
+    pointer-events: auto;
+    user-select: text;
+    outline: none;
+  }
+  :global(.canvas-textarea) {
+    width: 120px;
+    height: 40px;
+    font-size: 18px;
+    background: #222;
+    color: #fff;
+    border: 1px solid #888;
+    border-radius: 4px;
+    resize: none;
+    outline: none;
+    box-sizing: border-box;
+    z-index: 11;
+  }
+
+  *:focus {
+    outline: none;
   }
 </style>

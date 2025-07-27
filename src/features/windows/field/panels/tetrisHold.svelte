@@ -3,7 +3,7 @@
   import Panel from "../panel.svelte";
   import { onDestroy, onMount } from "svelte";
   import type { TetrisEnv } from "tetris/src/tetris_env";
-  import type { Tetromino } from "tetris/src/tetromino";
+  import { Tetromino } from "tetris/src/tetromino";
   import { listen } from "@tauri-apps/api/event";
   import {
     currentField,
@@ -12,7 +12,10 @@
     overlayFieldComponent,
     OverlayFieldType,
   } from "../field";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
   import { tetrominoBlockTextures } from "../modules/tetrisBoard.svelte";
 
   let disabled = writable(false);
@@ -27,8 +30,8 @@
       update_hold(event.payload as unknown as Tetromino);
     });
 
-    let hold = get(fields)[get(fieldIndex)].hold;
-    update_hold(hold);
+    let hold = get(currentFieldNode)?.hold;
+    update_hold(hold ?? Tetromino.Empty);
   });
 
   onDestroy(() => {

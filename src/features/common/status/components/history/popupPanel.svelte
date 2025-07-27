@@ -2,7 +2,10 @@
   import { get } from "svelte/store";
   import { history } from "../../../../../app/stores/history";
   import type { History, HistoryEntry } from "../../../../../history";
-  import { fieldIndex, fields } from "../../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../../app/stores/data";
   import PopupPanel from "../../popupPanel.svelte";
   import { onMount } from "svelte";
 
@@ -48,11 +51,7 @@
     history.update((history: History) => {
       {
         history.historyIndex = index;
-        const currentHistoryObj = history.current.entry.clone();
-        fields.update((fields) => {
-          fields[get(fieldIndex)] = currentHistoryObj;
-          return fields;
-        });
+        currentFieldNode.set(history.current.entry.clone());
       }
 
       return history;

@@ -26,7 +26,10 @@
     tetrisBoardApp,
     unmount,
   } from "../../modules/tetrisBoard.svelte";
-  import { fieldIndex, fields } from "../../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../../app/stores/data";
   import { t } from "../../../../../translations/translations";
   import { history } from "../../../../../app/stores/history";
   import type { History } from "../../../../../history";
@@ -208,7 +211,8 @@
       if (clone?.current) {
         clone.next.unshift(clone.current.type);
       }
-      get(fields)[get(fieldIndex)] = clone;
+
+      currentFieldNode.set(clone);
     });
 
     unlistenReset = await listen<string>("resetgame", (event) => {
@@ -235,7 +239,10 @@
     gameConfigObj = get(gameConfig)!;
     current_frame = 0;
 
-    originalEnv = get(fields)[get(fieldIndex)].clone();
+    if (get(currentFieldNode) == null) {
+      return;
+    }
+    originalEnv = get(currentFieldNode)!.clone();
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -311,13 +318,13 @@
   });
 
   function updateFieldForPlay(field: TetrisEnv, reason: string | undefined) {
-    fields.update((tetris_fields: TetrisEnv[]) => {
+    currentFieldNode.update((env: TetrisEnv | null) => {
       let clone = field.clone();
 
       if (field.current) {
         clone.next.unshift(field.current.type);
       }
-      tetris_fields[get(fieldIndex)] = clone;
+      env = clone;
 
       history.update((history: History) => {
         history.add(
@@ -327,7 +334,7 @@
         );
         return history;
       });
-      return tetris_fields;
+      return env;
     });
   }
 
@@ -337,7 +344,7 @@
     } else if (originalEnv) {
       env = originalEnv.clone();
     } else {
-      env = get(fields)[get(fieldIndex)].clone();
+      env = get(currentFieldNode)!.clone();
     }
 
     tetrisConfigObj = new TetrisConfig(
@@ -361,14 +368,6 @@
   function handleClearBot(): void {
     overrideBoard = null;
     overrideGhosts = null;
-  }
-
-  function handlePasteEvent(field: Tetromino[]) {
-    fields.update((tetris_fields: TetrisEnv[]) => {
-      tetris_fields[get(fieldIndex)].board = field;
-      currentField.set(FieldType.TetrisEdit);
-      return tetris_fields;
-    });
   }
 </script>
 

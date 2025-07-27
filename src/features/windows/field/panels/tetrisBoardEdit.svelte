@@ -1,6 +1,9 @@
 <script>
   import { get } from "svelte/store";
-  import { fieldIndex, fields } from "../../../../app/stores/data";
+  import {
+    currentFieldIndex,
+    currentFieldNode,
+  } from "../../../../app/stores/data";
   import Panel from "../panel.svelte";
   import { Tetromino } from "tetris/src/tetromino";
   import { TetrisEnv } from "tetris/src/tetris_env";
@@ -9,28 +12,31 @@
    * Moves all lines up by one, removing the top line and adding an empty line at the bottom
    */
   function clearLineUp() {
-    fields.update((fields) => {
-      const currentField = fields[get(fieldIndex)];
+    currentFieldNode.update((env) => {
+      if (!env) return env;
+
       // Remove the top line and add an empty line at the bottom
-      currentField.board.splice(0, TetrisEnv.WIDTH);
-      currentField.board.push(
-        ...new Array(TetrisEnv.WIDTH).fill(Tetromino.Empty)
-      );
-      return fields;
+      env.board.splice(0, TetrisEnv.WIDTH);
+      env.board.push(...new Array(TetrisEnv.WIDTH).fill(Tetromino.Empty));
+      return env;
     });
   }
 
   function clearLine() {
-    fields.update((fields) => {
-      fields[get(fieldIndex)].clearLines(false);
-      return fields;
+    currentFieldNode.update((env) => {
+      if (!env) return env;
+
+      env.clearLines(false);
+      return env;
     });
   }
 
   function clearLineDown() {
-    fields.update((fields) => {
-      fields[get(fieldIndex)].clearLines();
-      return fields;
+    currentFieldNode.update((env) => {
+      if (!env) return env;
+
+      env.clearLines(true);
+      return env;
     });
   }
 </script>
