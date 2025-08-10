@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { get, type Writable } from "svelte/store";
-  import { emitTo, type UnlistenFn } from "@tauri-apps/api/event";
   import { getCurrentWindow } from "@tauri-apps/api/window";
 
   import { t } from "../../../translations/translations.ts";
@@ -23,34 +22,41 @@
   } from "../../../app/stores/misc.ts";
   import { currentField, FieldType } from "../../windows/field/field.ts";
   import { currentWindow, WindowType } from "../../../app/stores/window.ts";
+  import type { UnlistenFn } from "@tauri-apps/api/event";
 
-  let unlistenBlur: UnlistenFn;
-  let unlistenFocus: UnlistenFn;
+  let unlistenBlur: UnlistenFn | null;
+  let unlistenFocus: UnlistenFn | null;
   let activeMenu: string | null = null;
 
   // Add a registry to track active submenus
   const subMenuRegistry = writable<HTMLDivElement[]>([]);
 
   async function setupEventListeners() {
-    const currentWindow = await getCurrentWindow();
+    try {
+      const currentWindow = await getCurrentWindow();
 
-    unlistenBlur = await currentWindow.listen("tauri://blur", () => {
-      (document.querySelector(".panel") as HTMLElement)!.style.backgroundColor =
-        "#1f1f1f";
-      document.querySelectorAll(".menu-item").forEach((button) => {
-        (button as HTMLElement).style.color = "#9d9d9d";
+      unlistenBlur = await currentWindow.listen("tauri://blur", () => {
+        (document.querySelector(
+          ".panel"
+        ) as HTMLElement)!.style.backgroundColor = "#1f1f1f";
+        document.querySelectorAll(".menu-item").forEach((button) => {
+          (button as HTMLElement).style.color = "#9d9d9d";
+        });
+
+        closeMenu();
       });
 
-      closeMenu();
-    });
-
-    unlistenFocus = await currentWindow.listen("tauri://focus", () => {
-      (document.querySelector(".panel") as HTMLElement)!.style.backgroundColor =
-        "#181818";
-      document.querySelectorAll(".menu-item").forEach((button) => {
-        (button as HTMLElement).style.color = "#cccccc";
+      unlistenFocus = await currentWindow.listen("tauri://focus", () => {
+        (document.querySelector(
+          ".panel"
+        ) as HTMLElement)!.style.backgroundColor = "#181818";
+        document.querySelectorAll(".menu-item").forEach((button) => {
+          (button as HTMLElement).style.color = "#cccccc";
+        });
       });
-    });
+    } catch (error) {
+      console.error("Error setting up event listeners:");
+    }
 
     document.addEventListener("click", handleClickOutside);
   }
@@ -340,7 +346,10 @@
 
       const rect = menuItemElement.getBoundingClientRect();
       const submenuRect = subMenu.getBoundingClientRect();
-      const windowSize = await getCurrentWindow().innerSize();
+      const windowSize = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
       const screenWidth = windowSize?.width;
       let leftPosition = rect.left;
 
@@ -375,7 +384,8 @@
   }
 
   function resetFumen() {
-    emitTo("main", "resetgame");
+    const event = new CustomEvent("resetgame");
+    document.dispatchEvent(event);
   }
 
   function moreOptions() {
@@ -418,8 +428,8 @@
   });
 
   onDestroy(() => {
-    unlistenBlur();
-    unlistenFocus();
+    unlistenBlur?.();
+    unlistenFocus?.();
     document.removeEventListener("click", handleClickOutside);
   });
 
@@ -506,7 +516,10 @@
 
       // Position the submenu
       const rect = subMenuItemElement.getBoundingClientRect();
-      const windowSize = await getCurrentWindow().innerSize();
+      const windowSize = {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
       const screenWidth = windowSize?.width;
 
       // Temporarily append to document body to get its dimensions
@@ -606,7 +619,8 @@
   {#if window.IS_WEB_MODE}
     <!-- window.IS_WEB_MODEがtrueの場合はデスクトップで開くボタン -->
     <button class="open-desktop-button" onclick={openInDesktop}>
-      {translations("common.menu-open-in-desktop")}
+      <!--{translations("common.menu-open-in-desktop")}-->
+      Open in Desktop
     </button>
   {/if}
 

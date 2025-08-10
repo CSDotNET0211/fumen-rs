@@ -14,7 +14,7 @@ use tauri::{LogicalSize, Size, Window};
 
 mod model;
 
-static before_window_size: OnceLock<(u32, u32)> = OnceLock::new();
+static BEFORE_WINDOW_SIZE: OnceLock<(u32, u32)> = OnceLock::new();
 
 #[tauri::command]
 fn test() {
@@ -163,7 +163,7 @@ unsafe fn load_library(bot_name: &str) -> Result<Arc<Mutex<Library>>, String> {
 #[tauri::command]
 fn initialize_window(window: Window) {
     let current_size = window.outer_size().unwrap();
-    before_window_size
+    BEFORE_WINDOW_SIZE
         .set((current_size.width, current_size.height))
         .ok();
 
@@ -181,7 +181,7 @@ fn adjust_window_size(window: Window) {
     let current_size = window.outer_size().unwrap();
     let scale_factor = window.scale_factor().unwrap();
 
-    let (old_width, old_height) = before_window_size.get().unwrap();
+    let (old_width, old_height) = BEFORE_WINDOW_SIZE.get().unwrap();
 
     let new_width = current_size.width as f64;
     let new_height = current_size.height as f64;
@@ -205,7 +205,7 @@ fn adjust_window_size(window: Window) {
         }))
         .unwrap();
 
-    before_window_size
+    BEFORE_WINDOW_SIZE
         .set((final_width as u32, final_height as u32))
         .ok();
 }

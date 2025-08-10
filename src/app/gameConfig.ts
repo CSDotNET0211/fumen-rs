@@ -81,7 +81,7 @@ export class GameConfig {
 
 	toJSON(): string {
 		return JSON.stringify({
-			keymaps: Array.from(this.keymaps!.entries()),
+			keymaps: this.keymaps ? Object.fromEntries(this.keymaps) : {},
 			das: this.das,
 			arr: this.arr,
 			sdf: this.sdf,
@@ -102,7 +102,8 @@ export class GameConfig {
 		const data = JSON.parse(json);
 		const obj = new GameConfig();
 
-		obj.keymaps = new Map<string, Record<string, KeymapEntry>>(data.keymaps);
+		console.log("Loading config from JSON", data.keymaps);
+		obj.keymaps = new Map<string, Record<string, KeymapEntry>>(Object.entries(data.keymaps || {}));
 		obj.das = data.das;
 		obj.arr = data.arr;
 		obj.sdf = data.sdf;
@@ -139,7 +140,10 @@ export class GameConfig {
 				this.save(IS_WEB_MODE, gameConfig);
 			}
 
+			//	console.log("Loading config from localStorage", localStorage.getItem("config"));
+			let configData = JSON.parse(localStorage.getItem("config")!);
 			gameConfig = this.fromJSON(localStorage.getItem("config")!);
+
 		} else {
 			let configExists = await exists("config.json", {
 				baseDir: BaseDirectory.Resource,

@@ -3,9 +3,8 @@
 
   import { FederatedPointerEvent } from "pixi.js";
 
-  import { get } from "svelte/store";
+  import { get, type Unsubscriber } from "svelte/store";
   import { Tetromino } from "tetris/src/tetromino.js";
-  import { emitTo, listen } from "@tauri-apps/api/event";
   import { TetrisEnv } from "tetris/src/tetris_env";
   import {
     currentFieldIndex,
@@ -31,12 +30,8 @@
   //履歴追加用
   let boardBeforeEdit: Tetromino[];
 
-  let unlistenApplyField: any;
-  let unlistenAutoCanvasUpdater: any;
-  let unlistenApplyBot: any;
-  let unlistenClearBot: any;
-  let unlistenRequestBotField: any;
-  let unlistenAutoFillQueue: any;
+  let unlistenAutoCanvasUpdater: Unsubscriber;
+  let unlistenAutoFillQueue: Unsubscriber;
 
   let specialBlocks: number[] | null = null;
 
@@ -80,20 +75,12 @@
         autoFillQueue.set(false);
       }
     });
-
-    unlistenApplyField = await listen<TetrisEnv>(
-      "applyfield",
-      handleHistoryEvent
-    );
     unlistenAutoCanvasUpdater = currentFieldNode.subscribe(handleFieldUpdate);
 
-    unlistenApplyBot = await listen<{
-      board: Tetromino[];
-      ghosts: boolean[];
-    }>("onapplybot", (event) => {
-      handleApplyBot(event.payload.board, event.payload.ghosts);
-    });
-    unlistenClearBot = await listen<string>("onclearbot", handleClearBot);
+    document.addEventListener("applyfield", handleHistoryEvent);
+    document.addEventListener("onapplybot", handleApplyBot);
+    document.addEventListener("onclearbot", handleClearBot);
+    document.addEventListener("requestbotfield", requestBotField);
 
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mouseup", handleMouseUp);
@@ -106,27 +93,62 @@
       cell.on("pointerup", handlePointerUp);
       cell.on("pointerupoutside", handlePointerUpOutside);
     }
-
-    unlistenRequestBotField = await listen<TetrisEnv>("requestbotfield", () => {
-      emitTo("main", "responsebotfield", get(currentFieldNode));
-    });
   }
 
-  function handleHistoryEvent(event: any) {
-    const instance = new TetrisEnv();
-    Object.assign(instance, event.payload);
+  function handleApplyBot(event: Event) {
+    const payload = (event as CustomEvent).detail;
 
-    if (event.payload != null) {
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board: payload.board, ghosts: payload.ghosts },
+      })
+    );
+  }
+
+  function requestBotField() {
+    const env = get(currentFieldNode);
+    if (env == null) return;
+
+    document.dispatchEvent(
+      new CustomEvent("responsebotfield", { detail: env })
+    );
+  }
+
+  function handleHistoryEvent(event: Event) {
+    const payload = (event as CustomEvent).detail;
+
+    const instance = new TetrisEnv();
+    Object.assign(instance, payload);
+
+    if (payload != null) {
       currentFieldNode.set(instance);
     }
   }
 
   function handleFieldUpdate(env: TetrisEnv | null) {
+    throw new Error(
+      "直接更新ではなく、Databaseが発行した更新イベントを登録して更新"
+    );
+
     if (env == null) return;
 
-    emitTo("main", "onupdatefield", { board: env.board });
-    emitTo("main", "onupdatehold", env.hold);
-    emitTo("main", "onupdatenext", env.next);
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board: env.board },
+      })
+    );
+
+    document.dispatchEvent(
+      new CustomEvent("onupdatehold", {
+        detail: env.hold,
+      })
+    );
+
+    document.dispatchEvent(
+      new CustomEvent("onupdatenext", {
+        detail: env.next,
+      })
+    );
   }
 
   function handlePointerDown(event: FederatedPointerEvent) {
@@ -190,7 +212,11 @@
       overrideBoard[block] = 8;
     }
     const board = get(currentFieldNode)!.board;
-    emitTo("main", "onupdatefield", { board, override: overrideBoard });
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board, override: overrideBoard },
+      })
+    );
   }
 
   function applySpecialBlocks() {
@@ -282,7 +308,10 @@
     }
 
     suppressFieldUpdateNotification.set(false);
-    //TODO: さっきここで虚無更新
+    //ドラッグ編集が終わった最後に更新を送信
+    currentFieldNode.update((env) => {
+      return env;
+    });
   }
 
   function handlePointerUpOutside(event: FederatedPointerEvent) {
@@ -311,7 +340,10 @@
     }
 
     suppressFieldUpdateNotification.set(false);
-    //TODO: さっきここで虚無更新
+    //ドラッグ編集が終わった最後に更新を送信
+    currentFieldNode.update((env) => {
+      return env;
+    });
   }
 
   onMount(async () => {
@@ -322,19 +354,36 @@
     const env = get(currentFieldNode);
     if (env == null) return;
 
-    emitTo("main", "onupdatefield", { board: env.board });
-    emitTo("main", "onupdatehold", env.hold);
-    emitTo("main", "onupdatenext", env.next);
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", { detail: { board: env.board } })
+    );
+    document.dispatchEvent(
+      new CustomEvent("onupdatehold", { detail: env.hold })
+    );
+    document.dispatchEvent(
+      new CustomEvent("onupdatenext", { detail: env.next })
+    );
+
+    //初期化
+    selectedMino.set(0);
+    is_left_clicking = false;
+    erase_mode = false;
+
+    //初期状態のボードを履歴に追加
+    history.update((history: History) => {
+      history.add($t("common.history-field"), env.clone(), "");
+      return history;
+    });
   });
 
   onDestroy(() => {
     unMountTetrisBoard();
-    unlistenApplyField();
     unlistenAutoCanvasUpdater();
-    unlistenApplyBot();
-    unlistenClearBot();
-    unlistenRequestBotField();
     unlistenAutoFillQueue();
+    document.removeEventListener("applyfield", handleHistoryEvent);
+    document.removeEventListener("onapplybot", handleApplyBot);
+    document.removeEventListener("onclearbot", handleClearBot);
+    document.removeEventListener("requestbotfield", requestBotField);
 
     window.removeEventListener("mousedown", handleMouseDown);
     window.removeEventListener("mouseup", handleMouseUp);
@@ -360,14 +409,11 @@
   }
 
   function handleClearBot(): void {
-    emitTo("main", "onupdatefield", { board: get(currentFieldNode)!.board });
-  }
-
-  function handleApplyBot(board: Tetromino[], ghosts: boolean[]): void {
-    emitTo("main", "onupdatefield", {
-      board: board,
-      ghosts: ghosts,
-    });
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board: get(currentFieldNode)!.board },
+      })
+    );
   }
 </script>
 

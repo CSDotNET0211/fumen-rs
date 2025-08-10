@@ -1,0 +1,70 @@
+@startuml a
+abstract class DatabaseNode {
+    - id: number
+    - type: string
+    {abstract} +updateNode(db: Database)
+    {abstract} +createNode(db: Database)
+    {abstract} +deleteNode(db: Database)
+}
+
+class FieldDatabaseNode {
+    - x: number
+    - y: number
+    - thumbnail: string
+    - data: string
+}
+
+class TextDatabaseNode {
+    - x: number
+    - y: number
+    - text: string
+    - size: number
+    - color: string
+    - backgroundColor: string
+}
+
+
+class Database {
+    +getDatabaseAsBinary()
+    +initializeDatabase()
+    +resetDatabase()
+    +loadDatabase()
+    +getDatabase()
+    +updateNode(node: DatabaseNode)
+    +createNode()
+    +getNode()
+}
+
+abstract class NodeUpdater {
+	+update()
+	+create()
+	+delete()
+}
+
+class LocalUpdater {
+}
+
+class RemoteUpdater{
+}
+
+class SocketIOUpdater {
+	+sendUpdate()
+	+receiveUpdate()
+}
+
+SocketIOUpdater <|-- RemoteUpdater
+Database <|-- SocketIOUpdater
+Database <|-- LocalUpdater
+
+LocalUpdater <|-- NodeUpdater
+RemoteUpdater <|-- NodeUpdater
+
+
+ FieldDatabaseNode    <|-- DatabaseNode
+ TextDatabaseNode    <|-- DatabaseNode
+ 
+currentFieldNodeSubscriber <|-- TetrisEditとかの編集
+currentFieldNodeSubscriber <|-- TetrisPlayとかの編集
+
+NodeUpdater <|-- currentFieldNodeSubscriber
+@enduml

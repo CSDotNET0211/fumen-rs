@@ -9,10 +9,18 @@
   let background_img: string;
 
   onMount(async () => {
-    await resolveResource("assets/images/blocks.png").then((result) => {
-      background_img = convertFileSrc(result);
+    await getBlockImageURL().then((filePath) => {
+      background_img = filePath;
     });
   });
+
+  async function getBlockImageURL() {
+    if (window.IS_WEB_MODE) {
+      return "./blocks.png";
+    } else {
+      return convertFileSrc(await resolveResource("assets/images/blocks.png"));
+    }
+  }
 </script>
 
 <Panel title="Block">

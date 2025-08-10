@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get, writable } from "svelte/store";
+  import { get, writable, type Unsubscriber } from "svelte/store";
   import Panel from "../panel.svelte";
   import { onDestroy, onMount } from "svelte";
   import type { TetrisEnv } from "tetris/src/tetris_env";
@@ -19,28 +19,32 @@
   import { tetrominoBlockTextures } from "../modules/tetrisBoard.svelte";
 
   let disabled = writable(false);
-  let unlisten: any;
-
-  currentField.subscribe((value) => {
-    disabled.set(value === FieldType.TetrisEdit ? false : true);
-  });
+  let unListen: Unsubscriber;
 
   onMount(async () => {
-    unlisten = await listen<string>("onupdatehold", (event) => {
-      update_hold(event.payload as unknown as Tetromino);
+    unListen = currentField.subscribe((value) => {
+      disabled.set(value === FieldType.TetrisEdit ? false : true);
     });
 
+    document.addEventListener("onupdatehold", handleUpdateHold);
+
     let hold = get(currentFieldNode)?.hold;
-    update_hold(hold ?? Tetromino.Empty);
+    updateHold(hold ?? Tetromino.Empty);
   });
 
   onDestroy(() => {
-    unlisten();
+    unListen();
+    document.removeEventListener("onupdatehold", handleUpdateHold);
   });
 
   let hold = writable("");
 
-  function update_hold(type: Tetromino) {
+  function handleUpdateHold(event: Event) {
+    const customEvent = event as CustomEvent;
+    updateHold(customEvent.detail);
+  }
+
+  function updateHold(type: Tetromino) {
     hold.set(tetrominoBlockTextures[type]);
   }
 

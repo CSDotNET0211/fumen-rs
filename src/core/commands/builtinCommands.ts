@@ -7,7 +7,6 @@ import { readImage, readText, writeImage, writeText } from "@tauri-apps/plugin-c
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { Tetromino } from "tetris/src/tetromino.ts";
 import { decoder, encoder, Field, type Pages } from "tetris-fumen";
-import { emitTo } from "@tauri-apps/api/event";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { t } from "../../translations/translations.ts";
 import { ImageProcessor } from "../../features/windows/field/overlays/imageProcessor.ts";
@@ -18,8 +17,10 @@ import { currentFieldIndex, currentFieldNode } from "../../app/stores/data.ts";
 import { getCanvasImage } from "../../features/windows/field/modules/tetrisBoard.svelte";
 import { history } from "../../app/stores/history.ts";
 import { fumenImage, fumenPages, snapshot } from "../../app/stores/misc.ts";
-import { FieldNode, resetDatabase } from "../../features/windows/canvas/node.ts";
 import { currentWindow, WindowType } from "../../app/stores/window.ts";
+import { resetDatabase } from "../nodes/db.ts";
+import { nodeUpdater } from "../nodes/NodeUpdater/nodeUpdater.ts";
+import { FieldDatabaseNode } from "../nodes/UpdaterNode/fieldDatabaseNode.ts";
 
 
 
@@ -57,9 +58,16 @@ export function registerCommands() {
 								[0]: new TetrisEnv(),
 							};
 						});*/
-
 			resetDatabase();
-			FieldNode.insertDB(new TetrisEnv());
+
+			const index = get(nodeUpdater)!.create(new FieldDatabaseNode(undefined, undefined, undefined, undefined, new TetrisEnv()));
+			console.log(index);
+			// FieldDatabaseNode.createNode(db!, undefined, undefined, undefined, new TetrisEnv());
+			// FieldDatabaseNode.createNodeDB(new TetrisEnv());
+			// FieldNode.insertDB(new TetrisEnv());
+			// addNodeToMySQL(new TetrisEnv());
+			//
+			//FieldNode.insertDB(new TetrisEnv());
 			//	addNodeToMySQL(new TetrisEnv());
 			currentFieldIndex.set(1);
 			//indexが1から1の場合は更新されないから手動で
@@ -131,9 +139,9 @@ export function registerCommands() {
 
 					await commands.executeCommand("fumen.new", false);
 
-
+					throw new Error("Failed to load TetrisEnv from file");
 					console.log("Loaded TetrisEnv from file:", envMap);
-					fields.set(envMap);
+					currentFieldNode.set(envMap);
 					currentFieldIndex.set(0);
 
 					currentField.set(FieldType.TetrisEdit);
@@ -202,7 +210,8 @@ export function registerCommands() {
 					history.historyIndex--;
 
 					currentHistoryObj = history.current.entry.clone();
-					emitTo("main", "applyfield", currentHistoryObj);
+					const event = new CustomEvent("applyfield", { detail: currentHistoryObj });
+					document.dispatchEvent(event);
 				}
 
 				return history;
@@ -221,7 +230,8 @@ export function registerCommands() {
 					history.historyIndex += 1;
 					//TODO: なぜかjsonオブジェクトになるから注意
 					currentHistoryObj = history.current.entry.clone();
-					emitTo("main", "applyfield", currentHistoryObj);
+					const event = new CustomEvent("applyfield", { detail: currentHistoryObj });
+					document.dispatchEvent(event);
 				}
 
 				return history;

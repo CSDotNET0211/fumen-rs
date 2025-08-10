@@ -2,7 +2,6 @@
   import { get, writable } from "svelte/store";
   import Panel from "../panel.svelte";
   import type { TetrisEnv } from "tetris/src/tetris_env";
-  import { emitTo } from "@tauri-apps/api/event";
   import { snapshot } from "../../../../app/stores/misc";
   import {
     currentFieldIndex,
@@ -25,7 +24,11 @@
       return;
     }
 
-    emitTo("main", "applyfield", get(snapshot)[index].env.clone());
+    document.dispatchEvent(
+      new CustomEvent("applyfield", {
+        detail: get(snapshot)[index].env.clone(),
+      })
+    );
 
     history.update((history: History) => {
       history.add(

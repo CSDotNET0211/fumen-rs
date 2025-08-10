@@ -2,7 +2,6 @@
   import { onMount, onDestroy } from "svelte";
   import { currentWindow, WindowType } from "../../../app/stores/window";
   import { currentFieldIndex } from "../../../app/stores/data";
-  import { FieldNode, TextNode, Node as CanvasNode } from "./node";
   import { canvasView } from "../../../app/stores/data";
   import { get } from "svelte/store";
   import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./const";

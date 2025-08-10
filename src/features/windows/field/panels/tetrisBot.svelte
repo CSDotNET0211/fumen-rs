@@ -3,15 +3,13 @@
   import Panel from "../panel.svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { Tetromino } from "tetris/src/tetromino";
-  import { emitTo, listen } from "@tauri-apps/api/event";
   import { TetrisEnv } from "tetris/src/tetris_env";
   import { t } from "../../../../translations/translations";
 
-  let bots = ["ColdClear", "Zetris"];
+  let bots = ["unInitialized"];
   let selectedBot = bots[0];
   let thinkingTime = 1000;
   let maxNextPieces = 5;
-  let unlistenResponseField: any;
   let isLoading = false;
 
   onMount(async () => {
@@ -23,104 +21,106 @@
   });
 
   onDestroy(() => {
-    unlistenResponseField();
+    document.removeEventListener("responsebotfield", handleResponseBotField);
   });
 
   async function setupEventListeners() {
-    unlistenResponseField = await listen<any>(
-      "responsebotfield",
-      async (event) => {
-        isLoading = true;
-        try {
-          let env = Object.assign(new TetrisEnv(), event.payload);
-          let field = "";
-          for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
-            for (let x = 0; x < TetrisEnv.WIDTH; x++) {
-              field +=
-                env.board[x + (TetrisEnv.HEIGHT - 1 - y) * TetrisEnv.WIDTH] ==
-                Tetromino.Empty
-                  ? "0"
-                  : "1";
-            }
-          }
-          if (env.countClearableLines() != 0) {
-            alert($t("common.bot-alert-clear-line"));
-            return;
-          }
+    document.addEventListener("responsebotfield", handleResponseBotField);
+  }
 
-          let hold =
-            typeof env.hold === "number"
-              ? Tetromino[env.hold].toString().toLowerCase()
-              : env.hold.toString().toLowerCase();
-          let pieces = env.next
-            .slice(0, maxNextPieces)
-            .map((t: any) =>
-              typeof t === "number"
-                ? Tetromino[t].toString().toLowerCase()
-                : t.toString().toLowerCase()
-            )
-            .join("");
+  async function handleResponseBotField(event: Event) {
+    const customEvent = event as CustomEvent;
 
-          if (pieces.length + (hold === "empty" ? 0 : 1) < 2) {
-            alert($t("common.bot-alert-not-enough-pieces"));
-            return;
-          }
-
-          let incoming = 0;
-          await invoke("search_bot_best", {
-            botName: selectedBot,
-            field: field,
-            hold: hold,
-            b2b: env.btb,
-            combo: env.combo,
-            pieces: pieces,
-            incoming: incoming,
-          }).then((result) => {
-            function convertI32ToTetromino(value: number) {
-              switch (value) {
-                case 0:
-                  return Tetromino.I;
-                case 1:
-                  return Tetromino.O;
-                case 2:
-                  return Tetromino.T;
-                case 3:
-                  return Tetromino.L;
-                case 4:
-                  return Tetromino.J;
-                case 5:
-                  return Tetromino.S;
-                case 6:
-                  return Tetromino.Z;
-                default:
-                  return Tetromino.Empty;
-              }
-            }
-
-            const typedResult = result as number[];
-            let ghosts = Array(TetrisEnv.WIDTH * TetrisEnv.HEIGHT).fill(false);
-            for (let i = 0; i < 8; i += 2) {
-              let x = typedResult[i];
-              let y = typedResult[i + 1];
-              ghosts[x + y * TetrisEnv.WIDTH] = true;
-            }
-
-            let board = env.board;
-            for (let i = 0; i < 4; i++) {
-              board[typedResult[i * 2] + typedResult[i * 2 + 1] * 10] =
-                convertI32ToTetromino(typedResult[8]);
-            }
-
-            emitTo("main", "onapplybot", {
-              board: board,
-              ghosts: ghosts,
-            });
-          });
-        } finally {
-          isLoading = false;
+    isLoading = true;
+    try {
+      let env = Object.assign(new TetrisEnv(), customEvent.detail);
+      let field = "";
+      for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
+        for (let x = 0; x < TetrisEnv.WIDTH; x++) {
+          field +=
+            env.board[x + (TetrisEnv.HEIGHT - 1 - y) * TetrisEnv.WIDTH] ==
+            Tetromino.Empty
+              ? "0"
+              : "1";
         }
       }
-    );
+      if (env.countClearableLines() != 0) {
+        alert($t("common.bot-alert-clear-line"));
+        return;
+      }
+
+      let hold =
+        typeof env.hold === "number"
+          ? Tetromino[env.hold].toString().toLowerCase()
+          : env.hold.toString().toLowerCase();
+      let pieces = env.next
+        .slice(0, maxNextPieces)
+        .map((t: any) =>
+          typeof t === "number"
+            ? Tetromino[t].toString().toLowerCase()
+            : t.toString().toLowerCase()
+        )
+        .join("");
+
+      if (pieces.length + (hold === "empty" ? 0 : 1) < 2) {
+        alert($t("common.bot-alert-not-enough-pieces"));
+        return;
+      }
+
+      let incoming = 0;
+      await invoke("search_bot_best", {
+        botName: selectedBot,
+        field: field,
+        hold: hold,
+        b2b: env.btb,
+        combo: env.combo,
+        pieces: pieces,
+        incoming: incoming,
+      }).then((result) => {
+        function convertI32ToTetromino(value: number) {
+          switch (value) {
+            case 0:
+              return Tetromino.I;
+            case 1:
+              return Tetromino.O;
+            case 2:
+              return Tetromino.T;
+            case 3:
+              return Tetromino.L;
+            case 4:
+              return Tetromino.J;
+            case 5:
+              return Tetromino.S;
+            case 6:
+              return Tetromino.Z;
+            default:
+              return Tetromino.Empty;
+          }
+        }
+
+        const typedResult = result as number[];
+        let ghosts = Array(TetrisEnv.WIDTH * TetrisEnv.HEIGHT).fill(false);
+        for (let i = 0; i < 8; i += 2) {
+          let x = typedResult[i];
+          let y = typedResult[i + 1];
+          ghosts[x + y * TetrisEnv.WIDTH] = true;
+        }
+
+        let board = env.board;
+        for (let i = 0; i < 4; i++) {
+          board[typedResult[i * 2] + typedResult[i * 2 + 1] * 10] =
+            convertI32ToTetromino(typedResult[8]);
+        }
+
+        document.dispatchEvent(
+          new CustomEvent("onapplybot", {
+            detail: { board: board, ghosts: ghosts },
+          })
+        );
+      });
+    } finally {
+      isLoading = false;
+    }
   }
 </script>
 
@@ -146,7 +146,7 @@
           }
 
           isLoading = true;
-          emitTo("main", "requestbotfield");
+          document.dispatchEvent(new CustomEvent("requestbotfield"));
         }}
         disabled={isLoading}
         tabindex="-1"
@@ -160,7 +160,7 @@
       <button
         class="action-button"
         on:click={() => {
-          emitTo("main", "onclearbot");
+          document.dispatchEvent(new CustomEvent("onclearbot"));
         }}
         tabindex="-1">{$t("common.bot-clear")}</button
       >

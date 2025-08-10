@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import { TextNode, FieldNode, type Node } from "./node";
   import { selectedNodeId } from "./selectionStore";
 
   let objects: Array<{ id: number; type: string; node?: Node }> = [];

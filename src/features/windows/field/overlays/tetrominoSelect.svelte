@@ -3,7 +3,6 @@
   import { get, writable } from "svelte/store";
   import { Tetromino } from "tetris/src/tetromino";
   import type { TetrisEnv } from "tetris/src/tetris_env";
-  import { emitTo, listen } from "@tauri-apps/api/event";
   import { currentOverlayField, OverlayFieldType } from "../field";
   import {
     currentFieldIndex,

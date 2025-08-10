@@ -3,11 +3,10 @@
   import { TetrisEnv } from "tetris/src/tetris_env";
   //import { isLeftClicking } from "../routes/+page.svelte";
 
-  import { get } from "svelte/store";
+  import { get, type Unsubscriber } from "svelte/store";
   import { Tetromino } from "tetris/src/tetromino.js";
   import { DIFFS, SHAPES } from "tetris/src/constants.ts";
   import { TetrisConfig } from "tetris/src/config.ts";
-  import { emitTo, listen } from "@tauri-apps/api/event";
   import type { GameConfig } from "../../../../../app/gameConfig";
   import { shortcuts } from "../../../../../core/shortcuts/shortcuts";
   import {
@@ -39,13 +38,8 @@
   let gameConfigObj: GameConfig;
   let tetrisConfigObj: TetrisConfig;
 
-  let unlistenReset: any;
-  let unlistenApplyBot: any;
-  let unlistenClearBot: any;
-  let unlistenRequestBotField: any;
-  let unlistenApplyField: any;
-  let unlistenAutoFillQueue: any;
-  let unlistenSaveConfig: any;
+  let unlistenAutoFillQueue: Unsubscriber;
+  let unlistenSaveConfig: Unsubscriber;
 
   let overrideBoard: Tetromino[] | null = null;
   let overrideGhosts: boolean[] | null = null;
@@ -197,44 +191,11 @@
       }
     });
 
-    unlistenApplyField = await listen<TetrisEnv>("applyfield", (event) => {
-      const instance = new TetrisEnv();
-      Object.assign(instance, event.payload);
-
-      if (event.payload != null) {
-        env = instance;
-        env.start(tetrisConfigObj);
-      }
-
-      let clone = instance.clone();
-
-      if (clone?.current) {
-        clone.next.unshift(clone.current.type);
-      }
-
-      currentFieldNode.set(clone);
-    });
-
-    unlistenReset = await listen<string>("resetgame", (event) => {
-      resetGame();
-    });
-
-    unlistenApplyBot = await listen<{
-      board: Tetromino[];
-      ghosts: boolean[];
-    }>("onapplybot", (event) => {
-      handleApplyBot(event.payload.board, event.payload.ghosts);
-    });
-    unlistenClearBot = await listen<string>("onclearbot", handleClearBot);
-
-    unlistenRequestBotField = await listen<TetrisEnv>("requestbotfield", () => {
-      let clone = env!.clone();
-
-      if (clone?.current) {
-        clone.next.unshift(clone.current.type);
-      }
-      emitTo("main", "responsebotfield", clone);
-    });
+    document.addEventListener("applyfield", handleApplyField);
+    document.addEventListener("resetgame", handleResetGame);
+    document.addEventListener("onapplybot", (event) => handleApplyBot(event));
+    document.addEventListener("onclearbot", handleClearBot);
+    document.addEventListener("requestbotfield", handleRequestBotField);
 
     gameConfigObj = get(gameConfig)!;
     current_frame = 0;
@@ -288,31 +249,64 @@
         }
 
         if (overrideBoard) {
-          emitTo("main", "onupdatefield", {
-            board: overrideBoard,
-            ghosts: overrideGhosts,
-          });
+          document.dispatchEvent(
+            new CustomEvent("onupdatefield", {
+              detail: { board: overrideBoard, ghosts: overrideGhosts },
+            })
+          );
         } else {
-          emitTo("main", "onupdatefield", {
-            board: board,
-            ghosts: ghosts,
-          });
+          document.dispatchEvent(
+            new CustomEvent("onupdatefield", {
+              detail: { board: board, ghosts: ghosts },
+            })
+          );
         }
-        emitTo("main", "onupdatehold", env.hold);
-        emitTo("main", "onupdatenext", env.next);
+        document.dispatchEvent(
+          new CustomEvent("onupdatehold", {
+            detail: env.hold,
+          })
+        );
+        document.dispatchEvent(
+          new CustomEvent("onupdatenext", {
+            detail: env.next,
+          })
+        );
       }
     });
   });
 
+  function handleApplyField(event: Event) {
+    const customEvent = event as CustomEvent;
+
+    const instance = new TetrisEnv();
+    Object.assign(instance, customEvent.detail);
+
+    if (customEvent.detail != null) {
+      env = instance;
+      env.start(tetrisConfigObj);
+    }
+
+    let clone = instance.clone();
+
+    if (clone?.current) {
+      clone.next.unshift(clone.current.type);
+    }
+
+    currentFieldNode.set(clone);
+  }
+
   onDestroy(() => {
+    document.removeEventListener("applyfield", handleApplyField);
+    document.removeEventListener("resetgame", handleResetGame);
+    document.removeEventListener("onapplybot", (event) =>
+      handleApplyBot(event)
+    );
+    document.removeEventListener("onclearbot", handleClearBot);
+    document.removeEventListener("requestbotfield", handleRequestBotField);
+
     window.removeEventListener("keydown", handleKeyDown);
     window.removeEventListener("keyup", handleKeyUp);
     unmount();
-    unlistenRequestBotField();
-    unlistenApplyField();
-    unlistenReset();
-    unlistenApplyBot();
-    unlistenClearBot();
     unlistenAutoFillQueue();
     unlistenSaveConfig();
   });
@@ -337,6 +331,23 @@
       return env;
     });
   }
+  function handleResetGame() {
+    resetGame();
+  }
+
+  function handleRequestBotField() {
+    let clone = env!.clone();
+
+    if (clone?.current) {
+      clone.next.unshift(clone.current.type);
+    }
+
+    document.dispatchEvent(
+      new CustomEvent("responsebotfield", {
+        detail: clone,
+      })
+    );
+  }
 
   function resetGame(envPayload: TetrisEnv | null = null) {
     if (envPayload) {
@@ -360,12 +371,13 @@
     }
   }
 
-  function handleApplyBot(board: Tetromino[], ghosts: boolean[]) {
-    overrideBoard = board;
-    overrideGhosts = ghosts;
+  function handleApplyBot(event: Event) {
+    const customEvent = event as CustomEvent;
+    overrideBoard = customEvent.detail.board;
+    overrideGhosts = customEvent.detail.ghosts;
   }
 
-  function handleClearBot(): void {
+  function handleClearBot() {
     overrideBoard = null;
     overrideGhosts = null;
   }

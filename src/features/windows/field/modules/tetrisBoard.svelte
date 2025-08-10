@@ -11,7 +11,7 @@
   import { Tetromino } from "tetris/src/tetromino";
   import { resolveResource } from "@tauri-apps/api/path";
   import { convertFileSrc } from "@tauri-apps/api/core";
-  import { listen } from "@tauri-apps/api/event";
+  import { listen, type UnlistenFn } from "@tauri-apps/api/event";
   import { TetrisEnv } from "tetris/src/tetris_env";
 
   export const CELL_SIZE = 31;
@@ -27,8 +27,6 @@
 
   export let tetrisBoardSprites: CellSprite[];
   let boardContainer: Container;
-  let unlistenBoardUpdater: any;
-  let unlistenResize: any;
 
   export let leftPosition: number = 0;
   export let topPosition: number = 0;
@@ -104,7 +102,7 @@
       document.getElementById("offscreenCanvas") as HTMLCanvasElement
     );
 
-    update_field(tetrisBoardOffscreenSprites, board, ghosts, override);
+    updateFieldInternal(tetrisBoardOffscreenSprites, board, ghosts, override);
     const data = await tetrisBoardOffscreenApp?.renderer.extract.base64(
       tetrisBoardOffscreenApp.stage
     );
@@ -114,18 +112,7 @@
   }
 
   export async function mount() {
-    unlistenBoardUpdater = await listen<{
-      board: Tetromino[] | undefined;
-      ghosts: boolean[] | undefined;
-      override: number[] | undefined;
-    }>("onupdatefield", (event) => {
-      update_field(
-        tetrisBoardSprites,
-        event.payload.board,
-        event.payload.ghosts,
-        event.payload.override
-      );
-    });
+    document.addEventListener("onupdatefield", handleUpdateField);
 
     tetrisBoardApp = new Application();
     tetrisBoardSprites = [];
@@ -138,30 +125,8 @@
       document.getElementById("canvas") as HTMLCanvasElement
     );
 
-    async function adjustCanvasSize() {
-      const canvasElement = tetrisBoardApp?.canvas;
-      const containerElement = document.getElementById("canvas");
-
-      if (canvasElement && containerElement) {
-        const containerRect = containerElement.getBoundingClientRect();
-        const canvasWidth = canvasElement.width;
-        const canvasHeight = canvasElement.height;
-
-        if (
-          canvasWidth / canvasHeight >
-          containerRect.width / containerRect.height
-        ) {
-          canvasElement.style.width = "100%";
-          canvasElement.style.height = "auto";
-        } else {
-          canvasElement.style.width = "auto";
-          canvasElement.style.height = "100%";
-        }
-      }
-    }
-
-    unlistenResize = await listen<string>("tauri://resize", adjustCanvasSize);
     await adjustCanvasSize();
+    window.addEventListener("resize", adjustCanvasSize);
 
     const containerElement = document.getElementById("canvas");
     if (containerElement) {
@@ -171,14 +136,23 @@
     }
   }
 
+  function handleUpdateField(event: Event) {
+    const detail = (event as CustomEvent).detail;
+    const { board, ghosts, override } = detail;
+    updateFieldInternal(tetrisBoardSprites, board, ghosts, override);
+  }
+
   export async function unmount() {
+    document.removeEventListener("onupdatefield", handleUpdateField);
     tetrisBoardSprites = [];
 
     tetrisBoardApp?.destroy();
-    unlistenBoardUpdater();
-    unlistenResize();
+    window.removeEventListener("resize", adjustCanvasSize);
+
+    const canvasElement = document.getElementById("canvas");
   }
-  function update_field(
+
+  function updateFieldInternal(
     boardSprites: CellSprite[],
     board: Tetromino[] | undefined,
     ghosts: boolean[] | undefined,
@@ -205,6 +179,28 @@
         } else {
           boardSprites[pos].alpha = 1.0;
         }
+      }
+    }
+  }
+
+  async function adjustCanvasSize() {
+    const canvasElement = tetrisBoardApp?.canvas;
+    const containerElement = document.getElementById("canvas");
+
+    if (canvasElement && containerElement) {
+      const containerRect = containerElement.getBoundingClientRect();
+      const canvasWidth = canvasElement.width;
+      const canvasHeight = canvasElement.height;
+
+      if (
+        canvasWidth / canvasHeight >
+        containerRect.width / containerRect.height
+      ) {
+        canvasElement.style.width = "100%";
+        canvasElement.style.height = "auto";
+      } else {
+        canvasElement.style.width = "auto";
+        canvasElement.style.height = "100%";
       }
     }
   }
@@ -297,8 +293,7 @@
     const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
     const img = new Image();
 
-    await resolveResource("assets/images/blocks.png").then(async (result) => {
-      const filePath = convertFileSrc(result);
+    await getBlockImageURL().then(async (filePath) => {
       const texture = await Assets.load(filePath);
 
       img.src = filePath;
@@ -344,6 +339,14 @@
         tetrominoBlockTextures.push(canvas.toDataURL());
       };
     });
+  }
+
+  async function getBlockImageURL() {
+    if (window.IS_WEB_MODE) {
+      return "./blocks.png";
+    } else {
+      return convertFileSrc(await resolveResource("assets/images/blocks.png"));
+    }
   }
 
   export function convertToTetromino(input: string): Tetromino {

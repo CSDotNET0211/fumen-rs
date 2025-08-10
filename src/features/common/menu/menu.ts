@@ -112,9 +112,9 @@ export function reloadMenuItems() {
 					translations("common.menu-copy-as-gif"),
 					"",
 					() => {
-						overlayBoardViewContent.set(
-							OverrideBoardViewContentType.GifExport
-						);
+						//	overlayBoardViewContent.set(
+						//		OverrideBoardViewContentType.GifExport
+						//	);
 					},
 					undefined,
 					false,
@@ -193,13 +193,13 @@ export function reloadMenuItems() {
 					() => { },
 					[]
 				),
-				new MenuItem(
-					"panel-list",
-					MenuItemType.Normal,
-					translations("common.menu-panel-panels"),
-					"",
-					() => { }
-				),
+				/*	new MenuItem(
+						"panel-list",
+						MenuItemType.Normal,
+						translations("common.menu-panel-panels"),
+						"",
+						() => { }
+					),*/
 				new MenuItem(
 					"go-panel-settings",
 					MenuItemType.Normal,
@@ -209,7 +209,7 @@ export function reloadMenuItems() {
 						currentWindow.set(WindowType.Preferences);
 						//所定のidまでスクロール
 						setTimeout(() => {
-							const panelSettings = document.getElementById("panel-settings");
+							const panelSettings = document.getElementById("panel-left");
 							if (panelSettings) {
 								panelSettings.scrollIntoView({ behavior: "smooth" });
 							}
@@ -230,28 +230,49 @@ export function reloadMenuItems() {
 					MenuItemType.Normal,
 					translations("common.menu-join-discord"),
 					"",
-					() => openUrl("https://discord.gg/F958vMFfcV")
+					() => {
+						if (window.IS_WEB_MODE) {
+							window.open("https://discord.gg/F958vMFfcV", "_blank");
+						} else {
+							openUrl("https://discord.gg/F958vMFfcV");
+						}
+					}
 				),
 				new MenuItem(
 					"github",
 					MenuItemType.Normal,
 					translations("common.menu-open-github"),
 					"",
-					() => openUrl("https://github.com/CSDotNET0211/fumen-rs")
+					() => {
+						if (window.IS_WEB_MODE) {
+							window.open("https://github.com/CSDotNET0211/fumen-rs", "_blank");
+						} else {
+							openUrl("https://github.com/CSDotNET0211/fumen-rs");
+						}
+					}
 				),
 				new MenuItem(
 					"kofi",
 					MenuItemType.Normal,
 					translations("common.menu-support-me-on-ko-fi"),
 					"",
-					() => openUrl("https://ko-fi.com/csdotnet")
+					() => {
+						if (window.IS_WEB_MODE) {
+							window.open("https://ko-fi.com/csdotnet", "_blank");
+						} else {
+							openUrl("https://ko-fi.com/csdotnet");
+						}
+					}
 				),
 			]
 		),
 	]);
 
+
 	const config = get(gameConfig)!;
 	menuItems.update(menu => {
+		if (!menu) return menu;
+
 		// 再帰的にidでMenuItemを探す関数
 		function findMenuItemById(items: MenuItem[], id: string): MenuItem | undefined {
 			for (const item of items) {
@@ -270,14 +291,14 @@ export function reloadMenuItems() {
 				panelMenu.submenu?.push(
 
 					new MenuItem(
-						id || preset.name,
+						id,
 						MenuItemType.Toggle,
 						id,
 						"",
 						() => {
 							gameConfig.update(config => {
 								if (!config) return config;
-								config.panelPresets.currentPreset = id;
+								config.panelPresets!.currentPreset = id;
 								return config;
 							});
 							reloadMenuItems();
@@ -307,7 +328,7 @@ export function reloadMenuItems() {
 			}
 			return undefined;
 		}
-		return find(get(menuItems));
+		return find(get(menuItems)!);
 	})();
 
 	function isPanelInCurrentPresets(panel: string): boolean {
@@ -317,7 +338,8 @@ export function reloadMenuItems() {
 		return included ?? false;
 	}
 
-	if (panelListMenu) {
+
+	if (panelListMenu && false) {
 		panelListMenu.submenu = panelTypes.map(type => {
 			const checked = isPanelInCurrentPresets(type);
 			return new MenuItem(
@@ -328,7 +350,11 @@ export function reloadMenuItems() {
 				() => {
 					gameConfig.update(config => {
 						if (!config) return config;
-						const currentPreset = config.panelPresets.presets[config.panelPresets?.currentPreset];
+						if (config?.panelPresets === undefined) {
+							return config;
+						}
+
+						const currentPreset = config.panelPresets!.presets[config.panelPresets!.currentPreset];
 
 						const idx = currentPreset.right.indexOf(type as string);
 						if (idx === -1) {

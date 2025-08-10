@@ -17,22 +17,23 @@
     currentFieldNode,
   } from "../../../../app/stores/data";
 
-  let unlisten: any;
-
   onMount(async () => {
-    unlisten = await listen<string>("onupdatenext", (event) => {
-      update_next(event.payload as unknown as Tetromino[]);
-    });
+    document.addEventListener("onupdatenext", handleUpdateNext);
 
     let next = get(currentFieldNode)!.next;
-    update_next(next);
+    updateNext(next);
   });
 
   onDestroy(() => {
-    unlisten();
+    document.removeEventListener("onupdatenext", handleUpdateNext);
   });
 
-  function update_next(value: Tetromino[]) {
+  function handleUpdateNext(event: Event) {
+    const customEvent = event as CustomEvent;
+    updateNext(customEvent.detail);
+  }
+
+  function updateNext(value: Tetromino[]) {
     let data: string[] = [];
     for (let type of value) {
       let img = tetrominoBlockTextures[type];

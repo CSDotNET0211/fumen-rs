@@ -19,7 +19,10 @@
     WindowFadeDuration,
     WindowType,
   } from "../app/stores/window.ts";
-  import { currentFieldIndex } from "../app/stores/data.ts";
+  import {
+    currentFieldIndex,
+    initializeDataStore,
+  } from "../app/stores/data.ts";
   import { commands } from "../core/commands/commands.ts";
   import MenuBar from "../features/common/menu/menuBar.svelte";
   import StatusBar from "../features/common/status/statusBar.svelte";
@@ -40,20 +43,20 @@
   import { initialize } from "../core/commands/newCommands.ts";
   import { BSON } from "bson";
   import { unknownThumbnailBase64 } from "../app/stores/misc.ts";
-  import { initializeDatabase } from "../features/windows/canvas/node.ts";
+  import { initializeDatabase } from "../core/nodes/db.ts";
+  import {
+    NodeUpdater,
+    nodeUpdater,
+  } from "../core/nodes/NodeUpdater/nodeUpdater.ts";
+  import { LocalNodeUpdater } from "../core/nodes/NodeUpdater/localNodeUpdater.ts";
 
   window.IS_WEB_MODE = false;
-
-  // グローバル変数
-
-  let splashScreenStatusText = "Preparing";
-
-  let resized: boolean = false;
 
   let unlistenSaveWindowSizeOnResize: UnlistenFn;
 
   onMount(async () => {
-    if (!window.IS_WEB_MODE) {
+    // if (!window.IS_WEB_MODE) {
+    try {
       unlistenSaveWindowSizeOnResize = await listen<string>(
         "tauri://save-window-size",
         async (event) => {
@@ -79,8 +82,12 @@
       }
 
       invoke("initialize_window");
+    } catch (e) {
+      console.error("Error setting up window size listener:");
     }
+    // }
 
+    //TODO: ごちゃつきすぎ
     await loadGameConfigOrInitialize();
     await loadTranslations("en", "/");
     await initializeWindows();
@@ -97,6 +104,8 @@
     reloadMenuItems();
     reloadStatusPanels();
 
+    nodeUpdater.set(new LocalNodeUpdater());
+
     const response = await fetch("./static/unknown.png");
     const blob = await response.blob();
     const reader = new FileReader();
@@ -109,8 +118,9 @@
 
     //await new Promise((resolve) => setTimeout(resolve, 1000));
     currentWindow.set(WindowType.Field);
-    await commands.executeCommand("fumen.new", false);
 
+    await commands.executeCommand("fumen.new", false);
+    initializeDataStore();
     /*
     let result: Uint8Array = BSON.serialize(get(currentFieldNode)!);
     console.log(result);
@@ -123,7 +133,11 @@
     window.addEventListener("mouseup", handleMouseButton);
     //currentWindow;
 
-    console.log(await invoke("get_args"));
+    try {
+      console.log(await invoke("get_args"));
+    } catch (e) {
+      console.error("Error invoking get_args:");
+    }
   });
 
   onDestroy(() => {
@@ -153,14 +167,6 @@
     }
 
     shortcuts.handleShortcut(event);
-  }
-
-  async function addBuiltinComponent(name: string, parent: Writable<any[]>) {
-    const component = (await import(`../components/panels/${name}.svelte`))
-      .default;
-    parent.update((currentComponents) => {
-      return [...currentComponents, component];
-    });
   }
 
   function disableContextMenu(event: MouseEvent) {

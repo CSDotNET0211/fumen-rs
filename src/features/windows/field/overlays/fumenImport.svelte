@@ -5,7 +5,6 @@
   import { decoder, type Pages } from "tetris-fumen";
   import { BaseDirectory, writeFile } from "@tauri-apps/plugin-fs";
   import { onMount } from "svelte";
-  import { emitTo } from "@tauri-apps/api/event";
   import { TetrisEnv } from "tetris/src/tetris_env";
   import {
     currentField,

@@ -1,0 +1,63 @@
+@startuml a
+actor User1
+
+participant Server
+actor User2
+
+' --- Socket.IO connection flow ---
+User1 -> Server: connection
+Server --> User1: connected
+
+User2 -> Server: connection
+Server --> User2: connected
+
+' --- Join room flow ---
+User1 -> Server: join_room
+alt ルーム人数=0
+    Server -> User1: role=host
+else ルーム人数>0
+    Server -> User1: role=client
+end
+' someone_join_roomは既にルームにいる全ユーザーに発火
+' Server -> User2: someone_join_room
+Server --> User1: joined_room
+
+User2 -> Server: join_room
+alt ルーム人数=0
+    Server -> User2: role=host
+else ルーム人数>0
+    Server -> User2: role=client
+end
+' someone_join_roomは既にルームにいる全ユーザーに発火
+Server -> User1: someone_join_room
+Server --> User2: joined_room
+
+' --- update_nodeイベント ---
+alt User1がhostの場合
+    User1 -> Server: update_node
+    Server -> User2: update_node
+else User2がclientの場合
+    User2 -> Server: update_node
+    Server --> User1: update_node
+    User1 -> Server: update_node
+    Server --> User2: update_node
+end
+
+
+' --- update_cursorイベント ---
+User1 -> Server: update_cursor
+
+User2 -> Server: update_cursor
+
+Server -> User1: update_cursor
+Server -> User2: update_cursor
+note right of Server
+  サーバーはnミリ秒ごとに、前回の送信から
+  cursor情報に更新があった場合のみ
+  全ユーザーにupdate_cursorイベントを送信する
+end note
+
+Server -> User1: update_cursor
+Server -> User2: update_cursor
+
+@enduml

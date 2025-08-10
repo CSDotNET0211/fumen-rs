@@ -1,6 +1,4 @@
-// Nodeの抽象クラスと各種ノードクラスを定義
-
-import { TetrisEnv } from "tetris/src/tetris_env";
+//////import { TetrisEnv } from "tetris/src/tetris_env";
 import { currentFieldIndex } from "../../../app/stores/data";
 import { currentWindow, WindowType } from "../../../app/stores/window";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./const";
@@ -11,88 +9,24 @@ import { getOffScreenCanvasImage } from "../field/modules/tetrisBoard.svelte";
 import initSqlJs from "sql.js";
 import { open } from "./contextMenu.svelte";
 import { selectedNodeId, } from './selectionStore';
+import { BaseDirectory, writeFile, } from "@tauri-apps/plugin-fs";
 
-let SQL: initSqlJs.SqlJsStatic;
-let db: Database | null = null; // MySQLのデータベース接続
-
-
-export async function initializeDatabase() {
-	SQL = await initSqlJs({
-		// Required to load the wasm binary asynchronously. Of course, you can host it wherever you want
-		// You can omit locateFile completely when running in node
-		locateFile: (file: any) => `${file}`
-	});
-
-	resetDatabase();
-
-}
-export function resetDatabase() {
-	db?.close();
-	db = new SQL.Database();
-
-	db.run(`DROP TABLE IF EXISTS nodes;`);
-	db.run(`DROP TABLE IF EXISTS connections;`);
-	db.run(`DROP TABLE IF EXISTS field_data;`);
-	db.run(`DROP TABLE IF EXISTS text_data;`);
-
-	db.run(`
-		CREATE TABLE nodes (
-			id INTEGER PRIMARY KEY,
-			type TEXT NOT NULL
-		);
-	`);
-
-	db.run(`
-		CREATE TABLE connections (
-			from_id INTEGER,
-			to_id INTEGER,
-			direction_from TEXT, --  fromノードのどの方向から
-			direction_to TEXT,   --  toノードのどの方向へ
-			PRIMARY KEY (from_id, to_id, direction_from, direction_to),
-			FOREIGN KEY (from_id) REFERENCES nodes(id) ON DELETE CASCADE,
-			FOREIGN KEY (to_id) REFERENCES nodes(id) ON DELETE CASCADE
-		);
-	`);
-
-	db.run(`
-		CREATE TABLE field_data (
-			id INTEGER PRIMARY KEY,
-			data TEXT NOT NULL,
-			thumbnail TEXT,
-			hash TEXT,
-			x REAL,
-			y REAL,
-			FOREIGN KEY (id) REFERENCES nodes(id) ON DELETE CASCADE
-		);
-	`);
-
-	db.run(`
-		CREATE TABLE text_data (
-			id INTEGER PRIMARY KEY ,
-			x REAL,
-			y REAL,
-			size INTEGER,
-			text TEXT,
-			color TEXT,
-			backgroundColor TEXT,
-			FOREIGN KEY (id) REFERENCES nodes(id) ON DELETE CASCADE
-		);
-	`);
-}
 
 
 export abstract class Node {
 	static readonly GRID_SNAP_SIZE = 10;
 	readonly id: number;
+	readonly type: string;
 	protected x: number;
 	protected y: number;
 	element: HTMLElement | null = null; // ← ここでrenderした要素を管理
 
 
-	constructor(id: number, x: number, y: number) {
+	constructor(id: number, x: number, y: number, type: string) {
 		this.x = x;
 		this.y = y;
 		this.id = id;
+		this.type = type;
 	}
 
 	abstract onDblClick(e: MouseEvent): void;
@@ -135,6 +69,19 @@ export abstract class Node {
 			ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
 			ctx.restore();
 		}
+	}
+
+	static getNodeTypeById(id: number): string | null {
+		if (!db) {
+			throw new Error("Database is not initialized.");
+		}
+
+		const result = db.exec(`SELECT type FROM nodes WHERE id = ?;`, [id]);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return null;
+		}
+
+		return result[0].values[0][0] as string;
 	}
 }
 
@@ -268,7 +215,6 @@ export class TextNode extends Node {
 		});
 	}
 
-
 	// ノードのイベント: TextNode
 	static handleTextNodeEdit(textNode: TextNode) {
 
@@ -346,8 +292,6 @@ export class TextNode extends Node {
 
 	}
 
-
-
 	private _onMouseDown(e: MouseEvent) {
 		// 編集モード中はドラッグしない
 		if (this.element && this.element.isContentEditable) {
@@ -369,11 +313,6 @@ export class TextNode extends Node {
 		document.addEventListener("mouseup", this._onDragEnd);
 	}
 
-
-
-
-
-
 	private _onDragMove = (e: MouseEvent) => {
 		if (!this.isDragging || !this.element) return;
 		const parent = this.element.parentElement;
@@ -393,9 +332,6 @@ export class TextNode extends Node {
 		this.element.style.left = `${this.x}px`;
 		this.element.style.top = `${this.y}px`;
 	};
-
-
-
 
 	private _onDragEnd = (e: MouseEvent) => {
 		this.isDragging = false;
@@ -467,7 +403,6 @@ export class TextNode extends Node {
 			[id, x, y, size, text, color, backgroundColor]
 		);
 
-		console.log("TextNode created:", { id, x, y, size, text, color, backgroundColor });
 		const event = new CustomEvent("textNodeChanged", { detail: { id, action: "created", x, y, size, text, color, backgroundColor } });
 		document.dispatchEvent(event);
 
@@ -503,7 +438,7 @@ export class TextNode extends Node {
 
 		db!.run(`DELETE FROM nodes WHERE id = ?;`, [id]);
 
-		const event = new CustomEvent("textNodeChanged", { detail: { id, action: "delete" } });
+		const event = new CustomEvent("textNodeChanged", { detail: { id, action: "deleted" } });
 		document.dispatchEvent(event);
 	}
 
@@ -664,7 +599,7 @@ export class FieldNode extends Node {
 	};
 
 
-	static getFromDB(id: number): TetrisEnv | null {
+	static agetFromDB(id: number): TetrisEnv | null {
 		if (id < 1) {
 			return null;
 		}
@@ -685,11 +620,13 @@ export class FieldNode extends Node {
 		}
 	}
 
-	static getAllFromDB(): Array<{ id: number, jsonData: string, x: number | null, y: number | null, thumbnail: string | null }> {
+	static agetAllFromDB(): Array<{ id: number, jsonData: string, x: number | null, y: number | null, thumbnail: string | null }> {
 		const result = db!.exec(`
 			SELECT n.id, n.data, n.x, n.y, n.thumbnail
 			FROM field_data n
 		`);
+
+		//ここはこれで大丈夫です
 		if (result.length === 0 || result[0].values.length === 0) {
 			return [];
 		}
@@ -702,7 +639,7 @@ export class FieldNode extends Node {
 		}));
 	}
 
-	static insertDB(env: TetrisEnv,
+	static ainsertDB(env: TetrisEnv,
 		options?: { x?: number; y?: number; thumbnail?: string }): number {
 		const jsonData = JSON.stringify(env);
 
@@ -741,7 +678,7 @@ export class FieldNode extends Node {
 		return id;
 	}
 
-	static async updateDB(index: number, env: TetrisEnv) {
+	static async aupdateDB(index: number, env: TetrisEnv) {
 		const jsonData = JSON.stringify(env);
 
 		// Update the field_node table with new data for the given index
@@ -763,7 +700,7 @@ export class FieldNode extends Node {
 		}
 	}
 
-	static updateCoordinatesDB(id: number, x?: number, y?: number) {
+	static aupdateCoordinatesDB(id: number, x?: number, y?: number) {
 		// x, yがundefinedの場合は、field_dataテーブルのx, yの平均値を使う
 		if (x === undefined || y === undefined) {
 			const coordResult = db!.exec(`SELECT x, y FROM field_data;`);
@@ -791,14 +728,14 @@ export class FieldNode extends Node {
 	}
 
 
-	static deleteDB(id: number) {
+	static adeleteDB(id: number) {
 		// nodesテーブルから削除すれば、ON DELETE CASCADEによりfield_dataも削除される
 		db!.run(`DELETE FROM nodes WHERE id = ?;`, [id]);
 		const event = new CustomEvent("fieldNodeChanged", { detail: { id, action: "deleted" } });
 		document.dispatchEvent(event);
 	}
 
-	static async updateThumbnailDB(id: number) {
+	static async aupdateThumbnailDB(id: number) {
 		console.log(`updateNodeThumbnailToMySQL: ${id}`);
 		// idでnodeを取得
 		const result = db!.exec(`SELECT data, hash FROM field_data WHERE id = ?;`, [id]);
@@ -829,7 +766,7 @@ export class FieldNode extends Node {
 		document.dispatchEvent(event);
 	}
 
-	static async updateAllThumbnailsDB() {
+	static async aupdateAllThumbnailsDB() {
 		const result = db!.exec(`SELECT id FROM field_data;`);
 		if (result.length === 0 || result[0].values.length === 0) {
 			return;
@@ -843,7 +780,7 @@ export class FieldNode extends Node {
 
 export class GroupNode extends Node {
 	// グループノード用のプロパティ
-	render(parent: HTMLElement) {
+	render() {
 		const div = document.createElement("div");
 		div.className = "group-node";
 		div.style.position = "absolute";
