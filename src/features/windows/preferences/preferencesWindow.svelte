@@ -13,11 +13,16 @@
   import Panel from "./panel.svelte";
   import { SortableList } from "@jhubbardsf/svelte-sortablejs";
 
+  import { flip } from "svelte/animate";
+  import { dndzone } from "svelte-dnd-action";
+  import List from "./list.svelte";
+  const flipDurationMs = 50;
+
   let editingKey = writable<string | null>(null);
   let selectedKeymap = writable<string>("TetrisPlay");
-  let presets = writable<string[]>(["Tetris", "PuyoPuyo"]);
   let selectedPreset = writable<string>("Tetris");
 
+  /*
   let right_components = writable<string[]>(["Next", "Block", "Snapshot"]);
   let left_components = writable<string[]>(["Hold", "View"]);
   let available_components = writable<string[]>([
@@ -27,17 +32,21 @@
     "Hold",
     "View",
   ]);
+*/
 
-  let selectedLeftIndex = writable<number | null>(null);
-  let selectedRightIndex = writable<number | null>(null);
-
-  let dragSourcePanel: "left" | "right" | null = null;
-  let dragSourceIndex: number | null = null;
-
-  let draggingLeft = false;
-  let draggingRight = false;
-  let dragOverLeft = false;
-  let dragOverRight = false;
+  //最初に初期化でleft,rightに入れるやつを入れる、その後使われてないやつをavailableに
+  const COMPONENT_ITEMS = [
+    "TetrisNext",
+    "TetrisBlockSelect",
+    "Snapshot",
+    "TetrisHold",
+    "BotSuggestions",
+    "TetrisFieldEditor",
+    "CanvasSwap",
+  ];
+  let leftComponentItems: { id: string }[] = [];
+  let rightComponentItems: { id: string }[] = [];
+  let availableComponentItems: { id: string }[] = [];
 
   function changeLanguage(event: Event) {
     const language = (event.target as HTMLSelectElement).value;
@@ -51,11 +60,84 @@
 
   onMount(() => {
     window.addEventListener("keydown", handleKeyInput);
+    loadPanelComponents($gameConfig!.currentPreset!);
+
+    // Find all range sliders and set initial --value
+    sliderElements = Array.from(
+      document.querySelectorAll<HTMLInputElement>('input[type="range"]')
+    );
+    sliderElements.forEach((slider) => {
+      updateSliderValue(slider);
+      const listener = () => updateSliderValue(slider);
+      slider.addEventListener("input", listener);
+      sliderListeners.push(() => slider.removeEventListener("input", listener));
+    });
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleKeyInput);
+
+    // Remove all slider listeners
+    sliderListeners.forEach((remove) => remove());
+    sliderListeners = [];
+    sliderElements = [];
   });
+
+  function loadPanelComponents(preset: string) {
+    const presets = $gameConfig!.panelPresets;
+    const leftItems = presets!.presets[preset].left;
+    const rightItems = presets!.presets[preset].right;
+
+    leftComponentItems = leftItems.map((item) => ({
+      id: item,
+    }));
+    rightComponentItems = rightItems.map((item) => ({
+      id: item,
+    }));
+
+    const usedItems = [...leftItems, ...rightItems];
+    const availableItems = COMPONENT_ITEMS.filter(
+      (item) => !usedItems.includes(item)
+    );
+    availableComponentItems = availableItems.map((item) => ({
+      id: item,
+    }));
+  }
+
+  function applyPanelPreset(type: string, items: { id: string }[]) {
+    console.log(type, items);
+
+    const presets = $gameConfig!.panelPresets;
+
+    switch (type) {
+      case "left":
+        gameConfig.update((config) => {
+          if (config) {
+            config.panelPresets!.presets[
+              config.panelPresets!.currentPreset
+            ].left = items.map((item) => item.id);
+          }
+          return config;
+        });
+        break;
+      case "right":
+        gameConfig.update((config) => {
+          if (config) {
+            config.panelPresets!.presets[
+              config.panelPresets!.currentPreset
+            ].right = items.map((item) => item.id);
+          }
+          return config;
+        });
+        break;
+      default:
+        throw new Error(`Unknown panel type: ${type}`);
+    }
+  }
+
+  function onComponentPanelSelectChanged(event: Event) {
+    loadPanelComponents((event.target as HTMLSelectElement).value);
+  }
 
   function startEditing(key: string) {
     editingKey.set(key);
@@ -80,22 +162,6 @@
 
       return config;
     });
-  }
-
-  async function addComponent(name: string, panel: Writable<string[]>) {
-    const Component = (
-      await import(`../buildin_panels/${name.toLowerCase()}.svelte`)
-    ).default;
-    panel.update((components) => [...components, Component]);
-  }
-
-  function handleAddComponent(panel: Writable<string[]>) {
-    const name = prompt("Enter component name to add:");
-    if (name && get(available_components).includes(name)) {
-      addComponent(name, panel);
-    } else {
-      alert("Invalid component name");
-    }
   }
 
   function back(event: any) {
@@ -149,55 +215,19 @@
     });
   }
 
-  function handleAddComponentToPanel(panel: Writable<string[]>) {
-    const name = prompt("Enter component name to add:");
-    if (name && get(available_components).includes(name)) {
-      panel.update((components) => [...components, name]);
-    } else {
-      alert("Invalid component name");
-    }
+  // Helper to update --value for a slider
+  function updateSliderValue(slider: HTMLInputElement) {
+    slider.style.setProperty(
+      "--value",
+      ((Number(slider.value) - Number(slider.min)) /
+        (Number(slider.max) - Number(slider.min))) *
+        100 +
+        "%"
+    );
   }
 
-  function selectLeft(index: number) {
-    selectedLeftIndex.set(index);
-    selectedRightIndex.set(null);
-  }
-  function selectRight(index: number) {
-    selectedRightIndex.set(index);
-    selectedLeftIndex.set(null);
-  }
-
-  function moveSelectedLeftToRight() {
-    const idx = get(selectedLeftIndex);
-    if (idx !== null) {
-      moveComponentBetweenPanels(left_components, right_components, idx);
-      selectedLeftIndex.set(null);
-    }
-  }
-  function moveSelectedRightToLeft() {
-    const idx = get(selectedRightIndex);
-    if (idx !== null) {
-      moveComponentBetweenPanels(right_components, left_components, idx);
-      selectedRightIndex.set(null);
-    }
-  }
-  function deleteSelected() {
-    const lidx = get(selectedLeftIndex);
-    const ridx = get(selectedRightIndex);
-    if (lidx !== null) {
-      removeComponent(left_components, lidx);
-      selectedLeftIndex.set(null);
-    } else if (ridx !== null) {
-      removeComponent(right_components, ridx);
-      selectedRightIndex.set(null);
-    }
-  }
-  function addToLeft() {
-    handleAddComponentToPanel(left_components);
-  }
-  function addToRight() {
-    handleAddComponentToPanel(right_components);
-  }
+  let sliderElements: HTMLInputElement[] = [];
+  let sliderListeners: (() => void)[] = [];
 </script>
 
 <div id="container">
@@ -328,99 +358,45 @@
           onkeydown={(e) => e.stopPropagation()}
         />
       </div>
-    </div>
-  </Panel>
+    </div></Panel
+  >
 
   <Panel
-    title={$t("common.preferences-panel")}
-    description="パネルの設定を行います。"
+    title="Components"
+    description="左右のコンポーネント。ドラッグドロップで並び替え可能。"
   >
-    <!-- svelte-ignore a11y_label_has_associated_control -->
-    <label>{$t("common.preferences-preset")}</label>
-    <select bind:value={$selectedPreset}>
-      {#each $presets as preset}
-        <option value={preset}>{preset}</option>
-      {/each}
+    <label for="panel-presets">Panel Presets</label>
+    <select
+      id="panel-presets"
+      onchange={onComponentPanelSelectChanged}
+      bind:value={$gameConfig!.panelPresets!.currentPreset}
+    >
+      {#if $gameConfig?.panelPresets?.presets}
+        {#each Object.keys($gameConfig.panelPresets.presets) as preset}
+          <option value={preset}>{preset}</option>
+        {/each}
+      {/if}
     </select>
 
-    <div
-      style="display: flex; flex-direction: row; justify-content: center; align-items: flex-start; gap: 32px;"
-    >
-      <div style="flex:1; min-width: 160px;">
-        <h2 style="text-align:center;">LEFT</h2>
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div id="panel-left" class="panel-list" class:drag-over={dragOverLeft}>
-          {#each $left_components as component, index}
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <div
-              class:panel-item-selected={index === $selectedLeftIndex}
-              class:dragging={index === $selectedLeftIndex && draggingLeft}
-              class="panel-item"
-              draggable="true"
-              onclick={() => selectLeft(index)}
-            >
-              {component}
-            </div>
-          {/each}
-        </div>
+    <div id="component-container">
+      <div style="flex: 1;">
+        <label>Left</label>
+        <List items={leftComponentItems} {applyPanelPreset} type="left" />
       </div>
-      <div
-        style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 32px;"
-      >
-        <button onclick={moveSelectedLeftToRight} style="width: 80px;">→</button
-        >
-        <button onclick={moveSelectedRightToLeft} style="width: 80px;">←</button
-        >
-        <button onclick={deleteSelected} style="width: 80px;">DEL</button>
-        <button onclick={addToLeft} style="width: 80px;">ADD L</button>
-        <button onclick={addToRight} style="width: 80px;">ADD R</button>
+      <div style="flex: 1;">
+        <label>Available</label>
+        <List
+          items={availableComponentItems}
+          {applyPanelPreset}
+          type="available"
+        />
       </div>
-      <div style="flex:1; min-width: 160px;">
-        <h2 style="text-align:center;">RIGHT</h2>
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          id="panel-right"
-          class="panel-list"
-          class:drag-over={dragOverRight}
-        >
-          <SortableList class="panel-item">
-            {#each $right_components as component, index}
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <!-- svelte-ignore a11y_no_static_element_interactions -->
-              <div
-                class:panel-item-selected={index === $selectedRightIndex}
-                class:dragging={index === $selectedRightIndex && draggingRight}
-                class="panel-item"
-                onclick={() => selectRight(index)}
-              >
-                {component}
-              </div>
-            {/each}
-          </SortableList>
-        </div>
+      <div style="flex: 1;">
+        <label>Right</label>
+        <List items={rightComponentItems} {applyPanelPreset} type="right" />
       </div>
     </div>
-
-    <SortableList
-      class="sortable-list"
-      draggable=".panel-item"
-      group="panel"
-      chosenClass="panel-item-selected"
-      dragClass="dragging"
-    >
-      <div>List Item 1</div>
-      <div>List Item 2</div>
-      <div>List Item 3</div>
-    </SortableList>
   </Panel>
-  <!--
-		<h2>{$t("common.preferences-image-recognition")}</h2>
-		<input
-			type="text"
-			bind:value={$gameConfig!.fumenImageRecognitionModelURL}
-			placeholder=""
-			onkeydown={(e) => e.stopPropagation()}
-		/>-->
 
   <Panel title={$t("common.preferences-online")} description="オンライン">
     <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -512,7 +488,7 @@
     background-color: #2a2d2e;
   }
   select {
-    margin: 10px 0;
+    margin: 4px 0;
     padding: 4px 8px;
     background-color: #2b2b2b;
     color: #cbcbcb;
@@ -539,6 +515,10 @@
     color: #cbcbcb;
     border: 1px solid #cbcbcb;
     box-sizing: border-box;
+  }
+
+  input[type="checkbox"]#ghost-piece {
+    accent-color: #1c7ad2;
   }
 
   #container::-webkit-scrollbar {
@@ -583,20 +563,34 @@
     flex: 1;
     color: #e7e7e7;
   }
-
   input[type="range"] {
     width: 400px;
     height: 4px;
     border-radius: 5px;
-    background-color: #ffffff;
+    background-color: #666666;
     outline: none;
+    -webkit-appearance: none;
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 15px;
     height: 15px;
-    border-radius: 50%;
-    background-color: rgb(122, 122, 122);
+    border-radius: 0 50% 50% 0;
+    background: #1c7ad2;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    background: linear-gradient(
+      to right,
+      #1c7ad2 0%,
+      #1c7ad2 var(--value, 0%),
+      #d3d3d3 var(--value, 0%),
+      #d3d3d3 100%
+    );
+
+    border-radius: 5px;
+    height: 15px;
   }
 
   .setting .value-input {
@@ -608,47 +602,14 @@
     text-align: center;
     border-radius: 2px;
   }
-  .panel-list {
-    border: 1px solid #444;
-    min-height: 220px;
-    background: #232323;
-    border-radius: 8px;
-    padding: 8px 0;
-    pointer-events: all;
-  }
-  .panel-item {
-    margin: 2px 8px;
-    background: #222;
-    color: #e7e7e7;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1.2em;
-    text-align: center;
-    border: 1px solid transparent;
-    transition:
-      background 0.2s,
-      border 0.2s;
-    pointer-events: all;
-  }
-  .panel-item:hover {
-    background: #2a2d2e;
-  }
-  .panel-item-selected {
-    border: 1.5px solid #1c7ad2;
-    background: #1c7ad233;
-    box-sizing: border-box;
-  }
-  .panel-item.dragging {
-    opacity: 0.5;
-    border: 1.5px dashed #1c7ad2;
-    box-sizing: border-box;
-  }
-  .panel-list.drag-over {
-    background: #1c7ad244;
-    border: 2px solid #1c7ad2;
-  }
-
   label {
     color: #cbcbcb;
+    text-align: center;
+    width: 100%;
+  }
+
+  #component-container {
+    display: flex;
+    gap: 20px;
   }
 </style>

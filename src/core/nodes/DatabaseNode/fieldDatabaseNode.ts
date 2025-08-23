@@ -1,8 +1,35 @@
 import type { TetrisEnv } from "tetris/src/tetris_env";
 import { DatabaseNode } from "./databaseNode";
 import type { Database } from "sql.js";
+import { nodeUpdater } from "../NodeUpdater/nodeUpdater";
+import { get } from "svelte/store";
+import { getAllFieldNodesDatabase } from "../db";
 
 export class FieldDatabaseNode extends DatabaseNode {
+	x: number | undefined;
+	y: number | undefined;
+	thumbnail: string | undefined;
+	data: TetrisEnv | undefined;
+	hash: string | undefined;
+
+	constructor(
+		id?: number,
+		x?: number,
+		y?: number,
+		thumbnail?: string,
+		data?: TetrisEnv,
+		hash?: string
+
+	) {
+		super(id, "field");
+		this.x = x;
+		this.y = y;
+		this.thumbnail = thumbnail;
+		this.data = data;
+		this.hash = hash;
+	}
+
+
 	updateNode(db: Database): void {
 
 		if (this.id === undefined) {
@@ -14,7 +41,7 @@ export class FieldDatabaseNode extends DatabaseNode {
 
 		if (this.data !== undefined) {
 			updateFields.push("data = ?");
-			values.push(this.data);
+			values.push(JSON.stringify(this.data));
 		}
 		if (this.thumbnail !== undefined) {
 			updateFields.push("thumbnail = ?");
@@ -41,14 +68,22 @@ export class FieldDatabaseNode extends DatabaseNode {
 
 	}
 	createNode(db: Database): number {
-		const index = super.createNode(db);
-		console.log("基底クラスで作られたよ");
+		if (!this.type) {
+			throw new Error("Node type is undefined. Cannot create node.");
+		}
+
+		const insertSql = `INSERT INTO nodes (type) VALUES (?)`;
+		db.run(insertSql, [this.type]);
+		const nodeIdResult = db.exec("SELECT last_insert_rowid()");
+		const nodeId = nodeIdResult[0].values[0][0] as number;
+		this.id = nodeId;
+
 		const fieldColumns: string[] = ["id"];
-		const fieldValues: any[] = [index];
+		const fieldValues: any[] = [nodeId];
 
 		if (this.data !== undefined) {
 			fieldColumns.push("data");
-			fieldValues.push(this.data);
+			fieldValues.push(JSON.stringify(this.data));
 		}
 		if (this.thumbnail !== undefined) {
 			fieldColumns.push("thumbnail");
@@ -65,28 +100,18 @@ export class FieldDatabaseNode extends DatabaseNode {
 
 		const fieldSql = `INSERT INTO field_data (${fieldColumns.join(", ")}) VALUES (${fieldColumns.map(() => "?").join(", ")})`;
 		db.run(fieldSql, fieldValues);
-		return index;
+
+		const event = new CustomEvent("onCreateFieldNode", { detail: this });
+		document.dispatchEvent(event);
+		return nodeId;
 
 	}
 	deleteNode(db: Database): void {
-		throw new Error("Method not implemented.");
-	}
-	x: number | undefined;
-	y: number | undefined;
-	thumbnail: string | undefined;
-	data: TetrisEnv | undefined;
+		super.deleteNode(db);
 
-	constructor(
-		id?: number,
-		x?: number,
-		y?: number,
-		thumbnail?: string,
-		data?: TetrisEnv
-	) {
-		super(id, "field");
-		this.x = x;
-		this.y = y;
-		this.thumbnail = thumbnail;
-		this.data = data;
+		const event = new CustomEvent("onDeleteFieldNode", { detail: this });
+		document.dispatchEvent(event);
 	}
+
+
 }

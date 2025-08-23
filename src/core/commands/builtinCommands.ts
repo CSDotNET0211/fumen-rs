@@ -20,7 +20,8 @@ import { fumenImage, fumenPages, snapshot } from "../../app/stores/misc.ts";
 import { currentWindow, WindowType } from "../../app/stores/window.ts";
 import { resetDatabase } from "../nodes/db.ts";
 import { nodeUpdater } from "../nodes/NodeUpdater/nodeUpdater.ts";
-import { FieldDatabaseNode } from "../nodes/UpdaterNode/fieldDatabaseNode.ts";
+import { FieldDatabaseNode } from "../nodes/DatabaseNode/fieldDatabaseNode.ts";
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../features/windows/canvas/const.ts";
 
 
 
@@ -43,7 +44,7 @@ async function setProcessImageMode(image: TauriImage | HTMLImageElement) {
 }
 
 export function registerCommands() {
-
+	console.log("コマンド登録");
 	// Command: fumen.new
 	commands.registerCommand(
 		new Command("fumen.new", async (showConfirmDialog: boolean) => {
@@ -60,20 +61,15 @@ export function registerCommands() {
 						});*/
 			resetDatabase();
 
-			const index = get(nodeUpdater)!.create(new FieldDatabaseNode(undefined, undefined, undefined, undefined, new TetrisEnv()));
-			console.log(index);
-			// FieldDatabaseNode.createNode(db!, undefined, undefined, undefined, new TetrisEnv());
-			// FieldDatabaseNode.createNodeDB(new TetrisEnv());
-			// FieldNode.insertDB(new TetrisEnv());
-			// addNodeToMySQL(new TetrisEnv());
-			//
-			//FieldNode.insertDB(new TetrisEnv());
-			//	addNodeToMySQL(new TetrisEnv());
-			currentFieldIndex.set(1);
-			//indexが1から1の場合は更新されないから手動で
-			currentFieldNode.set(new TetrisEnv());
+			//1 -> 1のときは更新されないので、強制的に-1にしておく
+			currentFieldIndex.set(-1);
+
+			const index = await get(nodeUpdater)!.create(new FieldDatabaseNode(undefined, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, undefined, new TetrisEnv()));
+
+			currentFieldIndex.set(index);
 
 			history.set(new History());
+			console.log(get(currentFieldNode));
 			history.update((history: History) => {
 				history.add(
 					get(t)("common.history-base"),
@@ -82,6 +78,9 @@ export function registerCommands() {
 				);
 				return history;
 			});
+
+			let customEvent = new CustomEvent("onReset");
+			document.dispatchEvent(customEvent);
 
 
 			currentField.set(FieldType.TetrisEdit);
@@ -138,10 +137,11 @@ export function registerCommands() {
 					});
 
 					await commands.executeCommand("fumen.new", false);
-
-					throw new Error("Failed to load TetrisEnv from file");
 					console.log("Loaded TetrisEnv from file:", envMap);
-					currentFieldNode.set(envMap);
+					throw new Error("Failed to load TetrisEnv from file");
+
+
+					//	currentFieldNode.set(envMap);
 					currentFieldIndex.set(0);
 
 					currentField.set(FieldType.TetrisEdit);

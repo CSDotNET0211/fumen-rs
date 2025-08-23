@@ -113,7 +113,7 @@
         }
 
         document.dispatchEvent(
-          new CustomEvent("onapplybot", {
+          new CustomEvent("onupdatefield", {
             detail: { board: board, ghosts: ghosts },
           })
         );
@@ -165,6 +165,8 @@
         tabindex="-1">{$t("common.bot-clear")}</button
       >
     </div>
+
+    <!--
     <details id="advanced-settings" tabindex="-1">
       <summary class="toggle-button" tabindex="-1"
         >{$t("common.bot-details")}</summary
@@ -191,6 +193,7 @@
         />
       </div>
     </details>
+	-->
   </div>
 </Panel>
 

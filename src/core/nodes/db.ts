@@ -1,8 +1,16 @@
 import type { Database } from "sql.js";
 import initSqlJs from "sql.js";
-import type { DatabaseNode } from "./UpdaterNode/databaseNode";
-import { FieldDatabaseNode } from "./UpdaterNode/fieldDatabaseNode";
+import type { DatabaseNode } from "./DatabaseNode/databaseNode";
+import { FieldDatabaseNode } from "./DatabaseNode/fieldDatabaseNode";
 import { TetrisEnv } from "tetris/src/tetris_env";
+import { TextDatabaseNode } from "./DatabaseNode/textDatabaseNode";
+import { SHA256 } from "crypto-js";
+import { getOffScreenCanvasImage } from "../../features/windows/field/modules/tetrisBoard.svelte";
+import { nodeUpdater } from "./NodeUpdater/nodeUpdater";
+import { get } from "svelte/store";
+import { currentWindow, WindowFadeDuration, WindowType } from "../../app/stores/window";
+import { currentFieldIndex } from "../../app/stores/data";
+import { currentField, FieldType } from "../../features/windows/field/field";
 let SQL: initSqlJs.SqlJsStatic;
 let db: Database | null = null;
 
@@ -34,6 +42,7 @@ export function resetDatabase() {
 	db.run(`DROP TABLE IF EXISTS connections;`);
 	db.run(`DROP TABLE IF EXISTS field_data;`);
 	db.run(`DROP TABLE IF EXISTS text_data;`);
+	db.run(`DROP TABLE IF EXISTS config;`);
 
 	db.run(`
 		CREATE TABLE nodes (
@@ -78,14 +87,44 @@ export function resetDatabase() {
 			FOREIGN KEY (id) REFERENCES nodes(id) ON DELETE CASCADE
 		);
 	`);
+
+	db.run(`
+		CREATE TABLE config (
+			version INTEGER
+		);
+	`);
+	db.run(`INSERT INTO config (version) VALUES (1);`);
+
 }
 
 export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>) {
 	if (!db) {
 		throw new Error("Database is not initialized.");
 	}
-
 	db = new SQL.Database(dbData);
+	const window = get(currentWindow);
+
+	document.addEventListener("onWindowTransitionEnd", async () => {
+		await new Promise(resolve => setTimeout(resolve, 100));
+		const firstFieldResult = db!.exec("SELECT id FROM field_data ORDER BY id LIMIT 1");
+		if (firstFieldResult.length && firstFieldResult[0].values.length) {
+			const firstFieldId = firstFieldResult[0].values[0][0] as number;
+			currentFieldIndex.set(firstFieldId);
+			currentWindow.set(window);
+			WindowFadeDuration.set(300);
+		}
+	}, { once: true });
+
+
+
+	currentField.set(FieldType.TetrisEdit);
+	currentWindow.set(WindowType.Splash);
+	currentFieldIndex.set(-1);
+
+
+
+	const event = new CustomEvent("databaseLoaded");
+	document.dispatchEvent(event);
 }
 
 
@@ -108,7 +147,6 @@ export function createNodeDatabase(updateNode: DatabaseNode): number {
 	if (!db) {
 		throw new Error("Database is not initialized.");
 	}
-
 	const index = updateNode.createNode(db);
 	return index;
 }
@@ -129,6 +167,7 @@ export function getNodeDatabase(id: number): DatabaseNode | null {
 	if (!db) {
 		throw new Error("Database is not initialized.");
 	}
+
 
 	let returnNode: DatabaseNode | null = null;
 
@@ -156,7 +195,8 @@ export function getNodeDatabase(id: number): DatabaseNode | null {
 					fieldRow[4] as number | undefined,
 					fieldRow[5] as number | undefined,
 					fieldRow[2] as string | undefined,
-					instance
+					instance,
+					fieldRow[3] as string | undefined
 				);
 			}
 			break;
@@ -167,30 +207,130 @@ export function getNodeDatabase(id: number): DatabaseNode | null {
 			const textResult = db.exec("SELECT * FROM text_data WHERE id = ?", [id]);
 
 			if (textResult.length && textResult[0].values.length) {
-				const textRow = textResult[0].values[0];
-				console.log(textRow);
-				throw new Error("TextDatabaseNode is not implemented yet.");
-				/*returnNode = new TextDatabaseNode(
-					textRow[0] as number,
-					textRow[1] as number | undefined,
-					textRow[2] as number | undefined,
-					textRow[3] as string | undefined,
-					textRow[4] as string | undefined,
-					textRow[5] as string | undefined
+				const fieldRow = textResult[0].values[0];
+
+				returnNode = new TextDatabaseNode(fieldRow[0] as number,
+					fieldRow[1] as number | undefined,
+					fieldRow[2] as number | undefined,
+					fieldRow[4] as string | undefined,
+					fieldRow[3] as number | undefined,
+					fieldRow[5] as string | undefined
+					, fieldRow[6] as string | undefined,
 				);
 
-				node.fields.push({
-					id: textRow[0] as number,
-					type: 'text',
-					data: textRow[4] as string,
-					x: textRow[1] as number | undefined,
-					y: textRow[2] as number | undefined,
-					thumbnail: undefined
-				});*/
 			}
 			break;
 	}
 
 	return returnNode;
 
+}
+
+export function getAllNodesDatabase(): DatabaseNode[] {
+	if (!db) {
+		throw new Error("Database is not initialized.");
+	}
+
+	const nodes: DatabaseNode[] = [];
+	const result = db.exec("SELECT * FROM nodes");
+
+	for (const row of result[0].values) {
+		const node = getNodeDatabase(row[0] as number);
+		if (node) {
+			nodes.push(node);
+		}
+	}
+
+	return nodes;
+}
+
+export function getAllFieldNodesDatabase(): FieldDatabaseNode[] {
+	if (!db) {
+		throw new Error("Database is not initialized.");
+	}
+
+	const fieldNodes: FieldDatabaseNode[] = [];
+	const result = db.exec("SELECT * FROM field_data");
+
+	if (result.length && result[0].values.length) {
+		for (const row of result[0].values) {
+			const instance = new TetrisEnv();
+			Object.assign(instance, JSON.parse(row[1] as string));
+
+			const fieldNode = new FieldDatabaseNode(
+				row[0] as number,
+				row[4] as number | undefined,
+				row[5] as number | undefined,
+				row[2] as string | undefined,
+				instance,
+				row[3] as string | undefined,
+			);
+			fieldNodes.push(fieldNode);
+		}
+	}
+
+	return fieldNodes;
+}
+
+
+
+export function getAllTextNodesDatabase(): TextDatabaseNode[] {
+	if (!db) {
+		throw new Error("Database is not initialized.");
+	}
+
+	const textNodes: TextDatabaseNode[] = [];
+	const result = db.exec("SELECT * FROM text_data");
+
+	if (result.length && result[0].values.length) {
+		for (const row of result[0].values) {
+			const textNode = new TextDatabaseNode(
+				row[0] as number,
+				row[1] as number | undefined,
+				row[2] as number | undefined,
+				row[4] as string | undefined,
+				row[3] as number | undefined,
+				row[5] as string | undefined,
+				row[6] as string | undefined
+			);
+			textNodes.push(textNode);
+		}
+	}
+
+	return textNodes;
+}
+
+export async function updateThumbnailDatabase(id: number) {
+	if (!db) {
+		throw new Error("Database is not initialized.");
+	}
+
+	const node = getNodeDatabase(id);
+	if (!node) {
+		throw new Error(`Node with id ${id} not found.`);
+	}
+
+	if (node.type != "field") {
+		throw new Error(`Node with id ${id} is not a FieldDatabaseNode.`);
+	}
+	const fieldNode = node as FieldDatabaseNode;
+
+
+	const thumbnailHash = SHA256(JSON.stringify(fieldNode.data)).toString();
+
+	if (thumbnailHash == fieldNode.thumbnail) {
+		return;
+	}
+
+	const thumbnail = await getOffScreenCanvasImage(fieldNode.data?.board, undefined, undefined) ?? "";
+
+	await get(nodeUpdater)!.update(new FieldDatabaseNode(fieldNode.id, undefined, undefined, thumbnail, undefined, thumbnailHash));
+}
+
+export async function updateAllThumbnailsDatabase() {
+	const fieldNodes = getAllFieldNodesDatabase();
+
+	for (const fieldNode of fieldNodes) {
+		await updateThumbnailDatabase(fieldNode.id!);
+	}
 }

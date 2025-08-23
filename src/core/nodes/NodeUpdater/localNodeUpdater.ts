@@ -1,20 +1,22 @@
 
 import { createNodeDatabase, updateNodeDatabase } from "../db";
-import type { DatabaseNode } from "../UpdaterNode/databaseNode";
+import type { DatabaseNode } from "../DatabaseNode/databaseNode";
 import { NodeUpdater } from "./nodeUpdater";
 
 
 export class LocalNodeUpdater extends NodeUpdater {
 
 
-	update(node: DatabaseNode): void {
+	async update(node: DatabaseNode): Promise<void> {
 		//db updateにnodeを渡す
 		updateNodeDatabase(node);
 	}
-	create(node: DatabaseNode): number {
-		return createNodeDatabase(node);
-	}
-	delete(nodeId: number): void {
+	async create(node: DatabaseNode): Promise<number> {
+		const index = createNodeDatabase(node);
 
+		return index;
+	}
+	async delete(nodeId: number): Promise<void> {
+		throw new Error("Method not implemented.");
 	}
 }

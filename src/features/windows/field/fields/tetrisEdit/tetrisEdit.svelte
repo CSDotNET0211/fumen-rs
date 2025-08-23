@@ -18,19 +18,22 @@
   import TetrisBoard, {
     mount as mountTetrisBoard,
     tetrisBoardSprites,
-    unmount as unMountTetrisBoard,
+    unmount,
     type CellSprite,
   } from "../../modules/tetrisBoard.svelte";
   import { t } from "../../../../../translations/translations";
   import { history } from "../../../../../app/stores/history";
   import type { History } from "../../../../../history";
+  import { DBRef } from "bson";
+  import { DatabaseNode } from "../../../../../core/nodes/DatabaseNode/databaseNode";
+  import { getNodeDatabase } from "../../../../../core/nodes/db";
 
   let is_left_clicking = false;
   let erase_mode = false;
   //履歴追加用
   let boardBeforeEdit: Tetromino[];
 
-  let unlistenAutoCanvasUpdater: Unsubscriber;
+  //let unlistenAutoCanvasUpdater: Unsubscriber;
   let unlistenAutoFillQueue: Unsubscriber;
 
   let specialBlocks: number[] | null = null;
@@ -75,9 +78,12 @@
         autoFillQueue.set(false);
       }
     });
-    unlistenAutoCanvasUpdater = currentFieldNode.subscribe(handleFieldUpdate);
+    //unlistenAutoCanvasUpdater = currentFieldNode.subscribe(handleFieldUpdate);
 
-    document.addEventListener("applyfield", handleHistoryEvent);
+    document.addEventListener("onUpdateFieldNode", handleFieldUpdate);
+
+    document.addEventListener("applyfield", handleApplyFieldEvent);
+    document.addEventListener("onReset", handleFieldUpdate);
     document.addEventListener("onapplybot", handleApplyBot);
     document.addEventListener("onclearbot", handleClearBot);
     document.addEventListener("requestbotfield", requestBotField);
@@ -98,6 +104,7 @@
   function handleApplyBot(event: Event) {
     const payload = (event as CustomEvent).detail;
 
+    console.log("handle apply bot");
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: payload.board, ghosts: payload.ghosts },
@@ -110,11 +117,11 @@
     if (env == null) return;
 
     document.dispatchEvent(
-      new CustomEvent("responsebotfield", { detail: env })
+      new CustomEvent("responsebotfield", { detail: env.clone() })
     );
   }
 
-  function handleHistoryEvent(event: Event) {
+  function handleApplyFieldEvent(event: Event) {
     const payload = (event as CustomEvent).detail;
 
     const instance = new TetrisEnv();
@@ -125,10 +132,11 @@
     }
   }
 
-  function handleFieldUpdate(env: TetrisEnv | null) {
-    throw new Error(
-      "直接更新ではなく、Databaseが発行した更新イベントを登録して更新"
-    );
+  function handleFieldUpdate(event: Event) {
+    let env = (event as CustomEvent)?.detail?.data;
+    if (!env) {
+      env = get(currentFieldNode);
+    }
 
     if (env == null) return;
 
@@ -377,10 +385,11 @@
   });
 
   onDestroy(() => {
-    unMountTetrisBoard();
-    unlistenAutoCanvasUpdater();
+    console.log("detroy");
+    unmount();
     unlistenAutoFillQueue();
-    document.removeEventListener("applyfield", handleHistoryEvent);
+    document.removeEventListener("applyfield", handleApplyFieldEvent);
+    document.removeEventListener("onUpdateFieldNode", handleFieldUpdate);
     document.removeEventListener("onapplybot", handleApplyBot);
     document.removeEventListener("onclearbot", handleClearBot);
     document.removeEventListener("requestbotfield", requestBotField);

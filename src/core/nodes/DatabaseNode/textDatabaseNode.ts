@@ -37,7 +37,7 @@ export class TextDatabaseNode extends DatabaseNode {
 
 		if (updates.length > 0) {
 			values.push(this.id);
-			const sql = `UPDATE text_nodes SET ${updates.join(", ")} WHERE id = ?`;
+			const sql = `UPDATE text_data SET ${updates.join(", ")} WHERE id = ?`;
 			db.run(sql, values);
 
 			const event = new CustomEvent("onUpdateTextNode", { detail: this });
@@ -47,13 +47,18 @@ export class TextDatabaseNode extends DatabaseNode {
 
 	}
 	createNode(db: Database): number {
-		super.createNode(db);
-		if (!this.id) {
-			throw new Error("Node ID is undefined. Cannot create node.");
+		if (!this.type) {
+			throw new Error("Node type is undefined. Cannot create node.");
 		}
 
+		const insertSql = `INSERT INTO nodes (type) VALUES (?)`;
+		db.run(insertSql, [this.type]);
+		const nodeIdResult = db.exec("SELECT last_insert_rowid()");
+		const nodeId = nodeIdResult[0].values[0][0] as number;
+		this.id = nodeId;
+
 		const textColumns: string[] = ["id"];
-		const textValues: any[] = [this.id];
+		const textValues: any[] = [nodeId];
 		if (this.x !== undefined) {
 			textColumns.push("x");
 			textValues.push(this.x);
@@ -78,12 +83,18 @@ export class TextDatabaseNode extends DatabaseNode {
 			textColumns.push("backgroundColor");
 			textValues.push(this.backgroundColor);
 		}
-		const textSql = `INSERT INTO text_nodes (${textColumns.join(", ")}) VALUES (${textColumns.map(() => "?").join(", ")})`;
+		const textSql = `INSERT INTO text_data (${textColumns.join(", ")}) VALUES (${textColumns.map(() => "?").join(", ")})`;
 		db.run(textSql, textValues);
+
+		const event = new CustomEvent("onCreateTextNode", { detail: this });
+		document.dispatchEvent(event);
 		return this.id!;
 	}
 	deleteNode(db: Database): void {
-		throw new Error("Method not implemented.");
+		super.deleteNode(db);
+
+		const event = new CustomEvent("onDeleteTextNode", { detail: this });
+		document.dispatchEvent(event);
 	}
 	x: number | undefined;
 	y: number | undefined;

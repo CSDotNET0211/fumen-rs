@@ -3,11 +3,11 @@
   import { gameConfig } from "../../../../../app/stores/config";
   import PopupPanel from "../../popupPanel.svelte";
   import {
-    connectWebSocket,
-    disconnectWebSocket,
+    connectWS,
+    disconnectWS,
     isConnected,
     isConnecting,
-    joinRoomWebSocket,
+    joinRoomWS,
     players,
     throwErrorServer,
     wsSocket,
@@ -21,18 +21,18 @@
   function handleConnectClick(
     event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }
   ) {
-    connectWebSocket();
+    connectWS();
   }
   function handleDisconnectClick(
     event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }
   ) {
-    disconnectWebSocket();
+    disconnectWS();
   }
 
   function handleJoinRoomClick(
     event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }
   ) {
-    joinRoomWebSocket(roomName, userName);
+    joinRoomWS(roomName, userName);
   }
 </script>
 

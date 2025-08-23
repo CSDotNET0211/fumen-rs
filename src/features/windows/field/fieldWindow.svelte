@@ -17,19 +17,16 @@
   let leftComponents: Writable<any[]> = writable([]);
 
   onMount(() => {
-    currentField.set(FieldType.TetrisEdit);
-    //   rightComponents.set([TetrisNext, TetrisBlockSelect]);
-    // leftComponents.set([TetrisHold]);
+    if (get(currentField) === FieldType.None) {
+      currentField.set(FieldType.TetrisEdit);
+    }
+
     currentOverlayField.set(OverlayFieldType.None);
   });
 
-  // config.panelPresets の変更を監視
   gameConfig.subscribe(($config) => {
     const presets = $config!.panelPresets;
     if (presets) {
-      // 例: presets.left/right が配列で Svelte コンポーネントを格納している場合
-      // panelPresets にはコンポーネント名の文字列が入っているので、対応するコンポーネントに変換
-
       const leftPreset = presets.presets[presets.currentPreset].left ?? [];
       const rightPreset = presets.presets[presets.currentPreset].right ?? [];
 
@@ -52,7 +49,7 @@
     {/each}
   </div>
 
-  <div style="flex-grow: 1; position: relative;">
+  <div style="flex-grow: 1; position: relative;background-color: #1c1c1c;">
     {#if $fieldComponent}
       <svelte:component this={$fieldComponent} />
     {/if}

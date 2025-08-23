@@ -19,10 +19,7 @@
     WindowFadeDuration,
     WindowType,
   } from "../app/stores/window.ts";
-  import {
-    currentFieldIndex,
-    initializeDataStore,
-  } from "../app/stores/data.ts";
+  import { currentFieldIndex, currentFieldNode } from "../app/stores/data.ts";
   import { commands } from "../core/commands/commands.ts";
   import MenuBar from "../features/common/menu/menuBar.svelte";
   import StatusBar from "../features/common/status/statusBar.svelte";
@@ -74,20 +71,20 @@
       );
 
       if (get(gameConfig)?.windowSize != undefined) {
-        invoke("set_window_size", {
+        await invoke("set_window_size", {
           window: getCurrentWindow(),
           width: get(gameConfig)?.windowSize?.width,
           height: get(gameConfig)?.windowSize?.height,
         });
       }
 
-      invoke("initialize_window");
+      await invoke("initialize_window");
     } catch (e) {
       console.error("Error setting up window size listener:");
     }
     // }
 
-    //TODO: ごちゃつきすぎ
+    //TODO: ごちゃつきすぎ,GUIの更新は後回し？
     await loadGameConfigOrInitialize();
     await loadTranslations("en", "/");
     await initializeWindows();
@@ -106,21 +103,22 @@
 
     nodeUpdater.set(new LocalNodeUpdater());
 
-    const response = await fetch("./static/unknown.png");
-    const blob = await response.blob();
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      unknownThumbnailBase64.set(reader.result as string);
-    };
-    reader.readAsDataURL(blob);
+    //    const response = await fetch("./static/unknown.png");
+    //  const blob = await response.blob();
+    //  const reader = new FileReader();
+    // reader.onloadend = () => {
+    //   unknownThumbnailBase64.set(reader.result as string);
+    // };
+    //reader.readAsDataURL(blob);
 
     console.log($t("common.console-warning"), "color: red; font-size: 2em;");
 
     //await new Promise((resolve) => setTimeout(resolve, 1000));
-    currentWindow.set(WindowType.Field);
 
+    console.log("ウィンドウタイプをフィールドに設定");
     await commands.executeCommand("fumen.new", false);
-    initializeDataStore();
+    currentWindow.set(WindowType.Field);
+    // initializeDataStore();
     /*
     let result: Uint8Array = BSON.serialize(get(currentFieldNode)!);
     console.log(result);
@@ -185,6 +183,9 @@
 
   function handleTransitionEnd(event: Event) {
     WindowFadeDuration.set(1);
+
+    const customEvent = new CustomEvent("onWindowTransitionEnd");
+    document.dispatchEvent(customEvent);
   }
 </script>
 

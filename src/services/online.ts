@@ -5,7 +5,12 @@ import { } from "../app/stores/data";
 import { TetrisEnv } from "tetris/src/tetris_env";
 import { BSON } from "bson";
 import { suppressFieldUpdateNotification } from "../app/stores/misc";
-import { getDatabaseAsBinary } from "../core/nodes/db";
+import { getDatabaseAsBinary, loadDatabase, updateNodeDatabase } from "../core/nodes/db";
+import { DatabaseNode } from "../core/nodes/DatabaseNode/databaseNode";
+import { nodeUpdater } from "../core/nodes/NodeUpdater/nodeUpdater";
+import { OnlineNodeUpdater } from "../core/nodes/NodeUpdater/onlineNodeUpdater";
+import { LocalNodeUpdater } from "../core/nodes/NodeUpdater/localNodeUpdater";
+import { FieldDatabaseNode } from "../core/nodes/DatabaseNode/fieldDatabaseNode";
 
 type CursorStruct = { x: number; y: number };
 export type CursorInfo = {
@@ -27,22 +32,24 @@ export const isConnected = writable(false);
 
 //let ignoreSubscriber: boolean = false;
 
-export function connectWebSocket() {
+export function connectWS() {
 	isConnecting.set(true);
-	wsSocket = io(get(gameConfig)?.socketAddress!);
+	wsSocket = io(get(gameConfig)?.socketAddress!, {
+		reconnection: false
+	});
 	registerEvents(wsSocket);
 
 }
 
-export function disconnectWebSocket() {
+export function disconnectWS() {
 	wsSocket?.disconnect();
 }
 
 
-export function joinRoomWebSocket(
+export async function joinRoomWS(
 	roomName: string,
 	userName: string
-) {
+): Promise<void> {
 	if (
 		!roomName ||
 		!userName ||
@@ -54,11 +61,57 @@ export function joinRoomWebSocket(
 		);
 		return;
 	}
-	wsSocket?.emit("join_room", roomName, userName);
+
+
+	const { roomPlayers, isHost }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean } = await wsSocket?.emitWithAck("join_room", roomName, userName);
+	players.set(new Set(roomPlayers));
+
+	if (!isHost) {
+		const dbBin = await getHostDB();
+		loadDatabase(dbBin);
+		nodeUpdater.set(new OnlineNodeUpdater());
+	}
 }
 
 export function throwErrorServer() {
 	wsSocket?.emit("debug_throw_error");
+}
+
+
+export async function sendCreateNodeWS(node: DatabaseNode): Promise<any> {
+	throw new Error("Not implemented");
+	return new Promise((resolve, reject) => {
+		wsSocket?.once("node_created", (response: any) => {
+			resolve(response);
+		});
+		wsSocket?.emit("create_node", BSON.serialize(node));
+	});
+}
+
+export async function sendUpdateNodeWS(node: DatabaseNode): Promise<any> {
+	console.log("Sending update for node:", node);
+	const response = await wsSocket?.emitWithAck("update_node", BSON.serialize(node));
+	const databaseNode = BSON.deserialize(response[0]) as DatabaseNode;
+	console.log("Received update response:", response);
+	console.log(databaseNode);
+	console.log(get(nodeUpdater));
+	updateNodeDatabase(databaseNode);
+}
+
+export async function sendDeleteNodeWS(node: DatabaseNode): Promise<any> {
+	throw new Error("Not implemented");
+	return new Promise((resolve, reject) => {
+		wsSocket?.once("node_deleted", (response: any) => {
+			resolve(response);
+		});
+		wsSocket?.emit("delete_node", BSON.serialize(node));
+	});
+}
+
+export async function getHostDB(): Promise<Uint8Array> {
+	const response = await wsSocket?.emitWithAck("request_db");
+	const uIntResponse = new Uint8Array(response[0]);
+	return uIntResponse;
 }
 
 function registerEvents(wsSocket: Socket) {
@@ -73,6 +126,10 @@ function registerEvents(wsSocket: Socket) {
 		});
 	});
 
+	wsSocket.on("connect_error", () => {
+		isConnecting.set(false);
+	});
+
 	wsSocket.on("disconnect", () => {
 		isConnected.set(false);
 		isConnecting.set(false);
@@ -81,14 +138,14 @@ function registerEvents(wsSocket: Socket) {
 			set.clear();
 			return set;
 		});
+
+		nodeUpdater.set(new LocalNodeUpdater());
 	});
 
-	wsSocket.on(
-		"joined_room",
-		(roomPlayers: { id: string; name: string; color: string }[]) => {
-			players.set(new Set(roomPlayers));
-		}
-	);
+	wsSocket.on("request_db", (callback) => {
+		const data = getDatabaseAsBinary();
+		callback(data);
+	});
 
 	wsSocket.on(
 		"update_cursor",
@@ -113,91 +170,6 @@ function registerEvents(wsSocket: Socket) {
 		}
 	);
 
-	wsSocket.on("request_db", (socketId: string) => {
-		/*
-				const fieldsArray = Object.values(get(fields));
-		
-				const serializedFields: Uint8Array[] = [];
-				fieldsArray.map((field) => {
-					serializedFields.push(field.serialize());
-				});
-				const totalLength = serializedFields.reduce(
-					(acc, arr) => acc + arr.length,
-					0
-				);
-				const result = new Uint8Array(1 + totalLength);
-				//console.log(fieldsArray.length);
-		
-				result[0] = fieldsArray.length;
-		
-				let offset = 1;
-				serializedFields.forEach((arr) => {
-					result.set(arr, offset);
-					offset += arr.length;
-				});
-		
-				console.log(result);*/
-		wsSocket?.emit("get_db", socketId, getDatabaseAsBinary());
-	});
-
-
-	wsSocket.on("get_db", (databaseBinary: Uint8Array<ArrayBufferLike>) => {
-		updateDB(databaseBinary);
-		/*
-		
-				const fieldsData = new Uint8Array(fieldsDataBuffer);
-				const fieldCount = fieldsData[0];
-				let offset = 1;
-				const deserializedFields = [];
-		
-				for (let i = 0; i < fieldCount; i++) {
-					console.log(i);
-					const field = TetrisEnv.deserialize({
-						buffer: fieldsData,
-						bufferIndex: offset,
-					});
-					deserializedFields.push(field);
-				}
-	
-		fields.set(deserializedFields);	*/
-	});
-
-	wsSocket.on(
-		"update_node",
-		(nodeBin: Uint8Array, nodeId: number, isHost: boolean) => {
-			const json = BSON.deserialize(nodeBin);
-			suppressFieldUpdateNotification.set(true);
-			FieldNode.updateDB(nodeId, json as TetrisEnv);
-			suppressFieldUpdateNotification.set(false);
-
-			if (isHost) {
-				const serialized = BSON.serialize(FieldNode.getFromDB(nodeId)!);
-
-				//	const serializedField: Uint8Array =
-				//		get(fields)[fieldIndex].serialize();
-
-				wsSocket?.emit("update_node", serialized, nodeId);
-			}
-		}
-	);
-
-	wsSocket.on("delete_node", (id: number) => {
-		//TODO: ホストと送信元の人以外にも送信する
-		//自分と送信元以外の全員に送る関数がいる？
-		let type = Node.getNodeTypeById(id);
-		switch (type) {
-			case "text":
-				FieldNode.deleteDB(id);
-				break;
-			case "field":
-				FieldNode.deleteDB(id);
-				break;
-			default:
-				throw new Error(`Unknown node type: ${type}`);
-		}
-	});
-
-
 	wsSocket.on(
 		"someone_join_room",
 		(newPlayer: { id: string; name: string; color: string }) => {
@@ -220,5 +192,16 @@ function registerEvents(wsSocket: Socket) {
 		console.error("WebSocket error:", error);
 	});
 
-
+	wsSocket.on("update_node", async (nodeBson: Uint8Array, callback) => {
+		console.log("Received update for node:", nodeBson);
+		const uIntResponse = new Uint8Array(nodeBson);
+		console.log(uIntResponse);
+		const databaseNodeObj = BSON.deserialize(uIntResponse) as DatabaseNode;
+		console.log(databaseNodeObj);
+		console.log(get(nodeUpdater));
+		const databaseNode = DatabaseNode.fromObj(databaseNodeObj);
+		updateNodeDatabase(databaseNode);
+		callback();
+	});
 }
+

@@ -11,7 +11,7 @@ class FieldDatabaseNode {
     - x: number
     - y: number
     - thumbnail: string
-    - data: string
+    - data: TetrisEnv
 }
 
 class TextDatabaseNode {
@@ -40,7 +40,6 @@ abstract class NodeUpdater {
 	+create()
 	+delete()
 }
-
 class LocalUpdater {
 }
 
@@ -66,5 +65,15 @@ RemoteUpdater <|-- NodeUpdater
 currentFieldNodeSubscriber <|-- TetrisEditとかの編集
 currentFieldNodeSubscriber <|-- TetrisPlayとかの編集
 
+NodeUpdater <|-- Canvasでの編集
+
 NodeUpdater <|-- currentFieldNodeSubscriber
+
+
+note right of NodeUpdater
+Local、Remoteともに通知される更新には
+必ずNodeUpdaterを経由する
+end note
+
+
 @enduml

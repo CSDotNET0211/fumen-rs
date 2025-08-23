@@ -266,6 +266,7 @@
       backgroundAlpha: 0,
       width: CELL_SIZE * TetrisEnv.WIDTH,
       height: CELL_SIZE * TetrisEnv.HEIGHT,
+      backgroundColor: 0x000000,
     });
 
     canvasParent.appendChild(app.canvas);

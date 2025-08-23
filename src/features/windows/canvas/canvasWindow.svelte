@@ -10,6 +10,17 @@
   import ContextMenu, { open } from "./contextMenu.svelte";
   import PropertiesPanel from "./PropertiesPanel.svelte";
   import { TetrisEnv } from "tetris/src/tetris_env";
+  import { FieldCanvasNode } from "./CanvasNode/fieldCanvasNode";
+  import type { CanvasNode } from "./CanvasNode/canvasNode";
+  import {
+    getAllNodesDatabase,
+    getNodeDatabase,
+    updateAllThumbnailsDatabase,
+  } from "../../../core/nodes/db";
+  import { FieldDatabaseNode } from "../../../core/nodes/DatabaseNode/fieldDatabaseNode";
+  import { nodeUpdater } from "../../../core/nodes/NodeUpdater/nodeUpdater";
+  import { TextDatabaseNode } from "../../../core/nodes/DatabaseNode/textDatabaseNode";
+  import { TextCanvasNode } from "./CanvasNode/textCanvasNode";
 
   let container: HTMLDivElement;
   let canvasInner: HTMLDivElement;
@@ -26,8 +37,9 @@
   const maxScale = 3;
 
   // ノード管理
-  let fieldNodes: Map<number, FieldNode> = new Map();
-  let textNodes: Map<number, TextNode> = new Map();
+  //let fieldNodes: Map<number, FieldCanvasNode> = new Map();
+  //let textNodes: Map<number, TextCanvasNode> = new Map();
+  let canvasNodes: Map<number, CanvasNode> = new Map();
 
   // canvas-innerのサイズ
 
@@ -107,12 +119,17 @@
     let y = (e.clientY - containerRect.top - offsetY) / scale;
     x = clamp(x, 0, CANVAS_WIDTH / scale);
     y = clamp(y, 0, CANVAS_HEIGHT / scale);
-    TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
+    throw new Error("Not implemented: handleContainerDblClick");
+    //TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
   }
 
   onMount(async () => {
-    document.addEventListener("fieldNodeChanged", onFieldNodeChanged);
-    document.addEventListener("textNodeChanged", onTextNodeChanged);
+    document.addEventListener("onUpdateFieldNode", onUpdateFieldNode);
+    document.addEventListener("onCreateFieldNode", onCreateFieldNode);
+    document.addEventListener("onDeleteFieldNode", onDeleteFieldNode);
+    document.addEventListener("onUpdateTextNode", onUpdateTextNode);
+    document.addEventListener("onCreateTextNode", onCreateTextNode);
+    document.addEventListener("onDeleteTextNode", onDeleteTextNode);
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
@@ -121,9 +138,10 @@
     }
 
     //サムネの更新が必要な場合は更新
-    await FieldNode.updateAllThumbnailsDB();
-    refreshAllFieldNodes();
-    refreshAllTextNodes();
+    await updateAllThumbnailsDatabase();
+    refreshAllNodes();
+    // refreshAllFieldNodes();
+    // refreshAllTextNodes();
     // TextNode, GroupNode, ArrowNodeのロードも必要ならここで追加
 
     // canvasViewから復元
@@ -144,8 +162,12 @@
   });
 
   onDestroy(() => {
-    document.removeEventListener("fieldNodeChanged", onFieldNodeChanged);
-    document.removeEventListener("textNodeChanged", onTextNodeChanged);
+    document.removeEventListener("onUpdateFieldNode", onUpdateFieldNode);
+    document.removeEventListener("onCreateFieldNode", onCreateFieldNode);
+    document.removeEventListener("onDeleteFieldNode", onDeleteFieldNode);
+    document.removeEventListener("onUpdateTextNode", onUpdateTextNode);
+    document.removeEventListener("onCreateTextNode", onCreateTextNode);
+    document.removeEventListener("onDeleteTextNode", onDeleteTextNode);
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("mouseup", onMouseUp);
     if (container) {
@@ -153,27 +175,83 @@
     }
   });
 
-  /// すべての盤面ノードを再描画
-  function refreshAllFieldNodes() {
-    fieldNodes.forEach((n) => n.element?.parentNode?.removeChild(n.element!));
-    fieldNodes.clear();
+  function onUpdateFieldNode(event: Event) {
+    const customEvent = event as CustomEvent;
+    const databaseNode = customEvent.detail as FieldDatabaseNode;
+    const canvasNode = canvasNodes.get(databaseNode.id!);
 
-    const result = FieldNode.getAllFromDB();
-    result.forEach((node) => {
-      // 新規ノードを生成
-      const x = clamp(node.x!, 0, CANVAS_WIDTH);
-      const y = clamp(node.y!, 0, CANVAS_HEIGHT);
-      const newNode = new FieldNode(
-        x,
-        y,
-        node.id,
-        node.thumbnail ?? get(unknownThumbnailBase64)
-      );
-      newNode.render();
-      canvasInner.appendChild(newNode.element!);
-      fieldNodes.set(newNode.id, newNode);
+    canvasNode?.render(databaseNode);
+  }
+
+  function onCreateFieldNode(event: Event) {
+    const customEvent = event as CustomEvent;
+    const databaseNode = customEvent.detail as FieldDatabaseNode;
+    const canvasNode = canvasNodes.get(databaseNode.id!);
+
+    canvasNode?.render(databaseNode);
+    canvasNodes.set(databaseNode.id!, canvasNode!);
+    canvasInner.appendChild(canvasNode!.element!);
+  }
+
+  function onDeleteFieldNode(event: Event) {
+    const customEvent = event as CustomEvent;
+    const nodeId = customEvent.detail.id;
+    const canvasNode = canvasNodes.get(nodeId);
+
+    if (canvasNode) {
+      canvasNode.element?.parentNode?.removeChild(canvasNode.element!);
+      canvasNodes.delete(nodeId);
+    }
+  }
+
+  function onUpdateTextNode(event: Event) {
+    const customEvent = event as CustomEvent;
+    const databaseNode = customEvent.detail as TextDatabaseNode;
+    const canvasNode = canvasNodes.get(databaseNode.id!);
+
+    canvasNode?.render(databaseNode);
+  }
+
+  function onCreateTextNode(event: Event) {
+    const customEvent = event as CustomEvent;
+    const databaseNode = customEvent.detail as TextDatabaseNode;
+    console.log(customEvent.detail);
+    const canvasNode = new TextCanvasNode(databaseNode.id!);
+
+    canvasNode.render(databaseNode);
+    canvasInner.appendChild(canvasNode.element!);
+    canvasNodes.set(canvasNode.id, canvasNode);
+  }
+
+  function onDeleteTextNode(event: Event) {
+    const customEvent = event as CustomEvent;
+    const nodeId = customEvent.detail.id;
+    const canvasNode = canvasNodes.get(nodeId);
+
+    if (canvasNode) {
+      canvasNode.element?.parentNode?.removeChild(canvasNode.element!);
+      canvasNodes.delete(nodeId);
+    }
+  }
+
+  /// すべての盤面ノードを再描画
+  function refreshAllNodes() {
+    canvasNodes.forEach((n) => n.element?.parentNode?.removeChild(n.element!));
+    canvasNodes.clear();
+
+    const nodes = getAllNodesDatabase();
+    console.log("refreshAllNodes", nodes);
+    nodes.forEach((node) => {
+      const dataBaseNode = getNodeDatabase(node.id!);
+      const canvasNode = new FieldCanvasNode(node.id!);
+      canvasNode.render(dataBaseNode!);
+
+      canvasInner.appendChild(canvasNode.element!);
+      canvasNodes.set(canvasNode.id, canvasNode);
     });
   }
+
+  /*
   function onFieldNodeChanged(event: Event) {
     let customEvent = event as CustomEvent;
     switch (customEvent.detail.action) {
@@ -246,9 +324,10 @@
     //id渡す特定のやつで
     fieldNodeThumbnailUpdateAll();
     fieldNodeCoordinatesUpdateAll();
-	*/
-  }
+	
+  }*/
 
+  /*
   function onTextNodeChanged(event: Event) {
     let customEvent = event as CustomEvent;
     switch (customEvent.detail.action) {
@@ -292,8 +371,9 @@
         textNodes.delete(customEvent.detail.id);
         break;
     }
-  }
+  }*/
 
+  /*
   function refreshAllTextNodes() {
     textNodes.forEach((n) => n.element?.parentNode?.removeChild(n.element!));
     textNodes.clear();
@@ -309,7 +389,7 @@
       textNodes.set(newNode.id, newNode);
       // TextNode.handleTextNodeEdit(newNode);
     });
-  }
+  }*/
 
   function handleCanvasRightClick(e: MouseEvent) {
     e.preventDefault();
@@ -327,21 +407,40 @@
           submenu: [
             {
               name: "盤面",
-              action: () => {
+              action: async () => {
                 // Create new field at clicked position
                 const x = clamp(canvasX, 0, CANVAS_WIDTH);
                 const y = clamp(canvasY, 0, CANVAS_HEIGHT);
-                // Assuming FieldNode has a static method to create new field
-                // You may need to adjust this based on your actual implementation
-                FieldNode.insertDB(new TetrisEnv(), { x, y });
+
+                await get(nodeUpdater)!.create(
+                  new FieldDatabaseNode(
+                    undefined,
+                    x,
+                    y,
+                    undefined,
+                    new TetrisEnv()
+                  )
+                );
               },
             },
             {
               name: "テキスト",
-              action: () => {
+              action: async () => {
                 const x = clamp(canvasX, 0, CANVAS_WIDTH);
                 const y = clamp(canvasY, 0, CANVAS_HEIGHT);
-                TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
+
+                //作成した後編集
+                const index = await get(nodeUpdater)!.create(
+                  new TextDatabaseNode(
+                    undefined,
+                    x,
+                    y,
+                    "New Text",
+                    30,
+                    "#ffffff",
+                    "transparent"
+                  )
+                );
               },
             },
           ],
@@ -400,11 +499,31 @@
     style="transform: translate({offsetX}px, {offsetY}px) scale({scale}); transform-origin: 0 0; width: {CANVAS_WIDTH}px; height: {CANVAS_HEIGHT}px;"
     on:contextmenu={handleCanvasRightClick}
   ></div>
+  <!-- 操作説明オーバーレイ -->
+
+  <div class="canvas-help">
+    <div class="canvas-help-row">
+      <img src="./mouse_right.svg" alt="mouse" class="canvas-help-icon" />
+      <span class="canvas-help-desc">メニュー</span>
+    </div>
+    <div class="canvas-help-row">
+      <span class="canvas-help-key">Ctrl</span>
+      <span class="canvas-help-plus">+</span>
+      <img src="./mouse_wheel.svg" alt="mouse" class="canvas-help-icon" />
+      <span class="canvas-help-desc">ズーム</span>
+    </div>
+    <div class="canvas-help-row">
+      <img src="./mouse_wheel_click.svg" alt="mouse" class="canvas-help-icon" />
+      <span class="canvas-help-plus">+</span>
+      <img src="./mouse_move.svg" alt="move" class="canvas-help-icon" />
+      <span class="canvas-help-desc">移動</span>
+    </div>
+  </div>
 </div>
 
 <ContextMenu></ContextMenu>
 
-<PropertiesPanel />
+<!-- <PropertiesPanel /> -->
 
 <style>
   .canvas-container {
@@ -486,5 +605,54 @@
 
   *:focus {
     outline: none;
+  }
+
+  .canvas-help {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    background: rgba(32, 32, 32, 0.85);
+    color: #fff;
+    font-size: 10px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    pointer-events: none;
+    user-select: none;
+    line-height: 1.7;
+    text-align: left;
+    display: flex;
+    flex-direction: row;
+    gap: 22px;
+    align-items: center;
+  }
+  .canvas-help-row {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+  }
+  .canvas-help-icon {
+    width: 33px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px #0008);
+  }
+  .canvas-help-plus {
+    font-weight: bold;
+    margin: 0 4px;
+  }
+  .canvas-help-key {
+    background: #444;
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+    margin: 0 4px;
+    font-family: monospace;
+  }
+  .canvas-help-desc {
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 500;
   }
 </style>

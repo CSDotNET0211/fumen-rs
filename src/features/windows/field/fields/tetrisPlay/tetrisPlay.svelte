@@ -201,7 +201,7 @@
     current_frame = 0;
 
     if (get(currentFieldNode) == null) {
-      return;
+      throw new Error("Current field node is null");
     }
     originalEnv = get(currentFieldNode)!.clone();
 

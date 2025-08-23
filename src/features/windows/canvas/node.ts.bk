@@ -550,6 +550,7 @@ export class FieldNode extends Node {
 			]
 		});
 	}
+	
 	_onMouseDown(e: MouseEvent) {
 		if (e.button !== 0) return;
 		this.isDragging = true;

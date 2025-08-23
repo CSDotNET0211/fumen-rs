@@ -47,9 +47,10 @@
           if (submenu) submenu.remove();
           submenu = createMenu(item.submenu!, level + 1);
           submenu.style.position = "absolute";
-          submenu.style.left = "100%";
+          // サブメニューを本体と少し重ねる
+          submenu.style.left = "calc(100% - 4px)";
           submenu.style.top = "0";
-          submenu.style.marginLeft = "2px";
+          submenu.style.marginLeft = "0";
           submenu.style.zIndex = String(9999 + level + 1);
           itemDiv.appendChild(submenu);
 
@@ -59,9 +60,9 @@
           const winH = window.innerHeight;
           if (rect.right > winW) {
             submenu.style.left = "auto";
-            submenu.style.right = "100%";
+            submenu.style.right = "calc(100% - 4px)";
             submenu.style.marginLeft = "0";
-            submenu.style.marginRight = "2px";
+            submenu.style.marginRight = "0";
           }
           if (rect.bottom > winH) {
             submenu.style.top = "auto";
@@ -184,13 +185,13 @@
   }
   :global(.submenu-arrow) {
     font-size: 12px;
-    margin-left: 8px;
+    margin-left: 4px;
   }
   :global(.context-menu .context-menu) {
     position: absolute;
-    left: 100%;
+    left: calc(100% - 4px); /* 本体と少し重なる */
     top: 0;
-    margin-left: 2px;
+    margin-left: 0;
     z-index: inherit;
   }
 </style>

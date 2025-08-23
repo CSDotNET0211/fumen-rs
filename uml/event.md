@@ -43,6 +43,8 @@
 | event      | 説明                       |
 |------------|----------------------------|
 | applyfield    | detailの盤面を適用させる |
+| onReset	| fumen.newが実行された |
+| onWindowTransitionEnd | Windowトランジション終了イベント |
 </details>
 
 <details>
@@ -51,6 +53,10 @@
 | event      | 説明                       |
 |------------|----------------------------|
 | onUpdateFieldNode | 盤面ノード更新イベント |
+| onCreateFieldNode | 盤面ノード作成イベント |
+| onDeleteFieldNode | 盤面ノード削除イベント |
 | onUpdateTextNode  | テキストノード更新イベント |
-
+| onCreateTextNode  | テキストノード作成イベント |
+| onDeleteTextNode  | テキストノード削除イベント |
+| databaseLoaded    | データベースが読み込まれたイベント |
 </details>

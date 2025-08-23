@@ -20,7 +20,7 @@
       data-tauri-drag-region
       style="font-size: 0.9em; color: #aaa; margin-bottom: 0px;"
     >
-      version 0.1.2
+      version 0.1.2 ここかえる
     </p>
     <p
       data-tauri-drag-region

@@ -1,14 +1,17 @@
-import type { DatabaseNode } from "../UpdaterNode/databaseNode";
+import { sendCreateNodeWS, sendUpdateNodeWS } from "../../../services/online";
+import type { DatabaseNode } from "../DatabaseNode/databaseNode";
 import { NodeUpdater } from "./nodeUpdater";
 
+//
 export class OnlineNodeUpdater extends NodeUpdater {
-	update(node: DatabaseNode): void {
-		//socket.ioのupdateで送信
+	async update(node: DatabaseNode): Promise<void> {
+		await sendUpdateNodeWS(node);
 	}
-	create(node: DatabaseNode): number {
-		throw new Error("Method not implemented.");
+	async create(node: DatabaseNode): Promise<number> {
+		const index = await sendCreateNodeWS(node);
+		return index;
 	}
-	delete(nodeId: number): void {
+	async delete(nodeId: number): Promise<void> {
 		throw new Error("Method not implemented.");
 	}
 }
