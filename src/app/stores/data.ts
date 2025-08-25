@@ -38,8 +38,11 @@ currentFieldIndex.subscribe((id) => {
 	}
 });
 
-currentFieldNode.subscribe(async (field) => {
 
+
+
+currentFieldNode.subscribe(async (field) => {
+	console.log("Current field node changed:", field);
 	if (get(currentFieldIndex) < 1 || !field) {
 		return;
 	}

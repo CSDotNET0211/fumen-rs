@@ -24,16 +24,6 @@ class TextDatabaseNode {
 }
 
 
-class Database {
-    +getDatabaseAsBinary()
-    +initializeDatabase()
-    +resetDatabase()
-    +loadDatabase()
-    +getDatabase()
-    +updateNode(node: DatabaseNode)
-    +createNode()
-    +getNode()
-}
 
 abstract class NodeUpdater {
 	+update()
@@ -52,8 +42,11 @@ class SocketIOUpdater {
 }
 
 SocketIOUpdater <|-- RemoteUpdater
-Database <|-- SocketIOUpdater
-Database <|-- LocalUpdater
+OnNodeUpdated <|-- SocketIOUpdater
+
+
+Database <|-- OnNodeUpdated
+OnNodeUpdated <|-- LocalUpdater
 
 LocalUpdater <|-- NodeUpdater
 RemoteUpdater <|-- NodeUpdater

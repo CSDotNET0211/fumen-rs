@@ -108,7 +108,7 @@ export class TextCanvasNode extends CanvasNode {
 				: 1;
 		// 差分移動
 
-		const fieldNode = getNodeDatabase(this.id) as TextDatabaseNode;
+		const fieldNode = getNodeDatabase(this.id)! as unknown as TextDatabaseNode;
 		this.dragOffsetX = (e.clientX - (parentRect?.left ?? 0)) / scale - fieldNode.x!;
 		this.dragOffsetY = (e.clientY - (parentRect?.top ?? 0)) / scale - fieldNode.y!;
 		document.body.style.cursor = "grabbing";

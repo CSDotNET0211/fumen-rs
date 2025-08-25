@@ -1,4 +1,4 @@
-import type { TetrisEnv } from "tetris/src/tetris_env";
+import { TetrisEnv } from "tetris/src/tetris_env";
 import { DatabaseNode } from "./databaseNode";
 import type { Database } from "sql.js";
 import { nodeUpdater } from "../NodeUpdater/nodeUpdater";
@@ -6,6 +6,7 @@ import { get } from "svelte/store";
 import { getAllFieldNodesDatabase } from "../db";
 
 export class FieldDatabaseNode extends DatabaseNode {
+
 	x: number | undefined;
 	y: number | undefined;
 	thumbnail: string | undefined;
@@ -112,6 +113,5 @@ export class FieldDatabaseNode extends DatabaseNode {
 		const event = new CustomEvent("onDeleteFieldNode", { detail: this });
 		document.dispatchEvent(event);
 	}
-
 
 }

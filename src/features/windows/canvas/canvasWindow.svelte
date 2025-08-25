@@ -123,19 +123,53 @@
     //TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
   }
 
-  onMount(async () => {
+  // Field Node Event Handler Registration/Removal Functions
+  function registerFieldNodeEventHandlers() {
     document.addEventListener("onUpdateFieldNode", onUpdateFieldNode);
     document.addEventListener("onCreateFieldNode", onCreateFieldNode);
     document.addEventListener("onDeleteFieldNode", onDeleteFieldNode);
+  }
+
+  function removeFieldNodeEventHandlers() {
+    document.removeEventListener("onUpdateFieldNode", onUpdateFieldNode);
+    document.removeEventListener("onCreateFieldNode", onCreateFieldNode);
+    document.removeEventListener("onDeleteFieldNode", onDeleteFieldNode);
+  }
+
+  // Text Node Event Handler Registration/Removal Functions
+  function registerTextNodeEventHandlers() {
     document.addEventListener("onUpdateTextNode", onUpdateTextNode);
     document.addEventListener("onCreateTextNode", onCreateTextNode);
     document.addEventListener("onDeleteTextNode", onDeleteTextNode);
+  }
 
+  function removeTextNodeEventHandlers() {
+    document.removeEventListener("onUpdateTextNode", onUpdateTextNode);
+    document.removeEventListener("onCreateTextNode", onCreateTextNode);
+    document.removeEventListener("onDeleteTextNode", onDeleteTextNode);
+  }
+
+  // Mouse Event Handler Registration/Removal Functions
+  function registerMouseEventHandlers() {
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
     if (container) {
       container.addEventListener("wheel", onWheel, { passive: false });
     }
+  }
+
+  function removeMouseEventHandlers() {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+    if (container) {
+      container.removeEventListener("wheel", onWheel);
+    }
+  }
+
+  onMount(async () => {
+    registerFieldNodeEventHandlers();
+    registerTextNodeEventHandlers();
+    registerMouseEventHandlers();
 
     //サムネの更新が必要な場合は更新
     await updateAllThumbnailsDatabase();
@@ -162,17 +196,9 @@
   });
 
   onDestroy(() => {
-    document.removeEventListener("onUpdateFieldNode", onUpdateFieldNode);
-    document.removeEventListener("onCreateFieldNode", onCreateFieldNode);
-    document.removeEventListener("onDeleteFieldNode", onDeleteFieldNode);
-    document.removeEventListener("onUpdateTextNode", onUpdateTextNode);
-    document.removeEventListener("onCreateTextNode", onCreateTextNode);
-    document.removeEventListener("onDeleteTextNode", onDeleteTextNode);
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-    if (container) {
-      container.removeEventListener("wheel", onWheel);
-    }
+    removeFieldNodeEventHandlers();
+    removeTextNodeEventHandlers();
+    removeMouseEventHandlers();
   });
 
   function onUpdateFieldNode(event: Event) {

@@ -102,18 +102,7 @@ export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>) {
 		throw new Error("Database is not initialized.");
 	}
 	db = new SQL.Database(dbData);
-	const window = get(currentWindow);
 
-	document.addEventListener("onWindowTransitionEnd", async () => {
-		await new Promise(resolve => setTimeout(resolve, 100));
-		const firstFieldResult = db!.exec("SELECT id FROM field_data ORDER BY id LIMIT 1");
-		if (firstFieldResult.length && firstFieldResult[0].values.length) {
-			const firstFieldId = firstFieldResult[0].values[0][0] as number;
-			currentFieldIndex.set(firstFieldId);
-			currentWindow.set(window);
-			WindowFadeDuration.set(300);
-		}
-	}, { once: true });
 
 
 
@@ -127,7 +116,17 @@ export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>) {
 	document.dispatchEvent(event);
 }
 
+export function getLatestFieldId(): number | null {
+	if (!db) {
+		throw new Error("Database is not initialized.");
+	}
 
+	const result = db.exec("SELECT id FROM field_data ORDER BY id DESC LIMIT 1");
+	if (result.length && result[0].values.length) {
+		return result[0].values[0][0] as number;
+	}
+	return null;
+}
 
 /**
  * dbを更新、通常の更新にはupdaterを経由して使用する。
@@ -161,6 +160,11 @@ export function deleteNodeDatabase(node: DatabaseNode) {
 	}
 
 	node.deleteNode(db);
+
+	const firstFieldResult = getLatestFieldId();
+	if (firstFieldResult) {
+		currentFieldIndex.set(firstFieldResult);
+	}
 }
 
 export function getNodeDatabase(id: number): DatabaseNode | null {

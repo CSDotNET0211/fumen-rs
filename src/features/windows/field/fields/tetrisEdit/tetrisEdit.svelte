@@ -317,9 +317,9 @@
 
     suppressFieldUpdateNotification.set(false);
     //ドラッグ編集が終わった最後に更新を送信
-    currentFieldNode.update((env) => {
-      return env;
-    });
+    //  currentFieldNode.update((env) => {
+    //     return env;
+    //    });
   }
 
   function handlePointerUpOutside(event: FederatedPointerEvent) {
@@ -349,9 +349,9 @@
 
     suppressFieldUpdateNotification.set(false);
     //ドラッグ編集が終わった最後に更新を送信
-    currentFieldNode.update((env) => {
-      return env;
-    });
+    //   currentFieldNode.update((env) => {
+    //    return env;
+    //  });
   }
 
   onMount(async () => {

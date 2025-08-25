@@ -1,16 +1,18 @@
 import { io, type Socket } from "socket.io-client";
 import { gameConfig } from "../app/stores/config";
 import { get, writable, type Writable } from "svelte/store";
-import { } from "../app/stores/data";
+import { currentFieldIndex } from "../app/stores/data";
 import { TetrisEnv } from "tetris/src/tetris_env";
 import { BSON } from "bson";
 import { suppressFieldUpdateNotification } from "../app/stores/misc";
-import { getDatabaseAsBinary, loadDatabase, updateNodeDatabase } from "../core/nodes/db";
+import { createNodeDatabase, deleteNodeDatabase, getDatabaseAsBinary, getLatestFieldId, loadDatabase, updateNodeDatabase } from "../core/nodes/db";
 import { DatabaseNode } from "../core/nodes/DatabaseNode/databaseNode";
 import { nodeUpdater } from "../core/nodes/NodeUpdater/nodeUpdater";
 import { OnlineNodeUpdater } from "../core/nodes/NodeUpdater/onlineNodeUpdater";
 import { LocalNodeUpdater } from "../core/nodes/NodeUpdater/localNodeUpdater";
 import { FieldDatabaseNode } from "../core/nodes/DatabaseNode/fieldDatabaseNode";
+import { resolveDatabaseNode } from "../core/nodes/DatabaseNode/resolver";
+import { currentWindow, WindowFadeDuration } from "../app/stores/window";
 
 type CursorStruct = { x: number; y: number };
 export type CursorInfo = {
@@ -30,6 +32,7 @@ export const cursors: Writable<{ [id: string]: CursorInfo }> = writable({});
 export const isConnecting = writable(false);
 export const isConnected = writable(false);
 
+//export const isHost = writable(false);
 //let ignoreSubscriber: boolean = false;
 
 export function connectWS() {
@@ -65,12 +68,27 @@ export async function joinRoomWS(
 
 	const { roomPlayers, isHost }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean } = await wsSocket?.emitWithAck("join_room", roomName, userName);
 	players.set(new Set(roomPlayers));
+	//	isHost.set(isHostValue);
 
+	console.log("host:", isHost);
 	if (!isHost) {
 		const dbBin = await getHostDB();
+
+		const window = get(currentWindow);
+
+		document.addEventListener("onWindowTransitionEnd", async () => {
+			await new Promise(resolve => setTimeout(resolve, 100));
+			const firstFieldResult = getLatestFieldId();
+			if (firstFieldResult) {
+				currentFieldIndex.set(firstFieldResult);
+				currentWindow.set(window);
+				WindowFadeDuration.set(300);
+			}
+		}, { once: true });
+
 		loadDatabase(dbBin);
-		nodeUpdater.set(new OnlineNodeUpdater());
 	}
+	nodeUpdater.set(new OnlineNodeUpdater());
 }
 
 export function throwErrorServer() {
@@ -79,22 +97,20 @@ export function throwErrorServer() {
 
 
 export async function sendCreateNodeWS(node: DatabaseNode): Promise<any> {
-	throw new Error("Not implemented");
-	return new Promise((resolve, reject) => {
-		wsSocket?.once("node_created", (response: any) => {
-			resolve(response);
-		});
-		wsSocket?.emit("create_node", BSON.serialize(node));
-	});
+	const response = await wsSocket?.emitWithAck("create_node", BSON.serialize(node));
+
+	const uIntResponse = new Uint8Array(response);
+	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
+
+	createNodeDatabase(databaseNode);
 }
 
 export async function sendUpdateNodeWS(node: DatabaseNode): Promise<any> {
-	console.log("Sending update for node:", node);
 	const response = await wsSocket?.emitWithAck("update_node", BSON.serialize(node));
-	const databaseNode = BSON.deserialize(response[0]) as DatabaseNode;
-	console.log("Received update response:", response);
-	console.log(databaseNode);
-	console.log(get(nodeUpdater));
+
+	const uIntResponse = new Uint8Array(response);
+	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
+
 	updateNodeDatabase(databaseNode);
 }
 
@@ -106,6 +122,8 @@ export async function sendDeleteNodeWS(node: DatabaseNode): Promise<any> {
 		});
 		wsSocket?.emit("delete_node", BSON.serialize(node));
 	});
+
+	deleteNodeDatabase(node);
 }
 
 export async function getHostDB(): Promise<Uint8Array> {
@@ -186,22 +204,40 @@ function registerEvents(wsSocket: Socket) {
 		);
 	});
 
+	wsSocket.on("node_updated", (nodeBson: Uint8Array) => {
+		const uIntResponse = new Uint8Array(nodeBson);
+		const databaseNodeObj = BSON.deserialize(uIntResponse);
+		const databaseNode = resolveDatabaseNode(databaseNodeObj);
+		updateNodeDatabase(databaseNode);
+	});
 
+	wsSocket.on("node_created", (nodeBson: Uint8Array) => {
+		const uIntResponse = new Uint8Array(nodeBson);
+		const databaseNodeObj = BSON.deserialize(uIntResponse);
+		const databaseNode = resolveDatabaseNode(databaseNodeObj);
+		createNodeDatabase(databaseNode);
+	});
+
+	wsSocket.on("node_deleted", (nodeBson: Uint8Array) => {
+		const uIntResponse = new Uint8Array(nodeBson);
+		const databaseNodeObj = BSON.deserialize(uIntResponse);
+		const databaseNode = resolveDatabaseNode(databaseNodeObj);
+		deleteNodeDatabase(databaseNode);
+	});
 
 	wsSocket.on("error", (error) => {
 		console.error("WebSocket error:", error);
 	});
 
 	wsSocket.on("update_node", async (nodeBson: Uint8Array, callback) => {
-		console.log("Received update for node:", nodeBson);
 		const uIntResponse = new Uint8Array(nodeBson);
-		console.log(uIntResponse);
-		const databaseNodeObj = BSON.deserialize(uIntResponse) as DatabaseNode;
-		console.log(databaseNodeObj);
-		console.log(get(nodeUpdater));
-		const databaseNode = DatabaseNode.fromObj(databaseNodeObj);
+		const databaseNodeObj = BSON.deserialize(uIntResponse);
+
+		const databaseNode = resolveDatabaseNode(databaseNodeObj);
 		updateNodeDatabase(databaseNode);
-		callback();
+		if (callback)
+			callback(nodeBson);
+
 	});
 }
 
