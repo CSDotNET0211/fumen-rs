@@ -4,7 +4,6 @@ import { get, writable, type Writable } from "svelte/store";
 import { currentFieldIndex } from "../app/stores/data";
 import { TetrisEnv } from "tetris/src/tetris_env";
 import { BSON } from "bson";
-import { suppressFieldUpdateNotification } from "../app/stores/misc";
 import { createNodeDatabase, deleteNodeDatabase, getDatabaseAsBinary, getLatestFieldId, loadDatabase, updateNodeDatabase } from "../core/nodes/db";
 import { DatabaseNode } from "../core/nodes/DatabaseNode/databaseNode";
 import { nodeUpdater } from "../core/nodes/NodeUpdater/nodeUpdater";
@@ -101,7 +100,7 @@ export async function sendCreateNodeWS(node: DatabaseNode): Promise<any> {
 
 	const uIntResponse = new Uint8Array(response);
 	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
-
+	console.log(databaseNode);
 	createNodeDatabase(databaseNode);
 }
 

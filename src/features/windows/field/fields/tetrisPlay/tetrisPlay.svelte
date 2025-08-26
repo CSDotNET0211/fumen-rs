@@ -292,7 +292,7 @@
       clone.next.unshift(clone.current.type);
     }
 
-    currentFieldNode.set(clone);
+    currentFieldNode.setValue(clone);
   }
 
   onDestroy(() => {

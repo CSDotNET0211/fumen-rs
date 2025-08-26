@@ -16,6 +16,7 @@
     getAllNodesDatabase,
     getNodeDatabase,
     updateAllThumbnailsDatabase,
+    updateThumbnailDatabase,
   } from "../../../core/nodes/db";
   import { FieldDatabaseNode } from "../../../core/nodes/DatabaseNode/fieldDatabaseNode";
   import { nodeUpdater } from "../../../core/nodes/NodeUpdater/nodeUpdater";
@@ -204,6 +205,11 @@
   function onUpdateFieldNode(event: Event) {
     const customEvent = event as CustomEvent;
     const databaseNode = customEvent.detail as FieldDatabaseNode;
+
+    if (databaseNode.data) {
+      updateThumbnailDatabase(databaseNode.id!);
+    }
+
     const canvasNode = canvasNodes.get(databaseNode.id!);
 
     canvasNode?.render(databaseNode);
@@ -266,12 +272,25 @@
     canvasNodes.clear();
 
     const nodes = getAllNodesDatabase();
+    console.log(nodes);
     console.log("refreshAllNodes", nodes);
+
     nodes.forEach((node) => {
       const dataBaseNode = getNodeDatabase(node.id!);
-      const canvasNode = new FieldCanvasNode(node.id!);
-      canvasNode.render(dataBaseNode!);
+      console.log(dataBaseNode);
 
+      let canvasNode: CanvasNode;
+
+      if (node.type === "field") {
+        canvasNode = new FieldCanvasNode(node.id!);
+      } else if (node.type === "text") {
+        canvasNode = new TextCanvasNode(node.id!);
+      } else {
+        console.warn(`Unknown node type: ${node.type}`);
+        return;
+      }
+
+      canvasNode.render(dataBaseNode!);
       canvasInner.appendChild(canvasNode.element!);
       canvasNodes.set(canvasNode.id, canvasNode);
     });

@@ -28,10 +28,12 @@
   import { DatabaseNode } from "../../../../../core/nodes/DatabaseNode/databaseNode";
   import { getNodeDatabase } from "../../../../../core/nodes/db";
 
-  let is_left_clicking = false;
+  let isLeftClicking = false;
   let erase_mode = false;
-  //履歴追加用
-  let boardBeforeEdit: Tetromino[];
+  let pointerIsDown = false;
+
+  let editBoard: Tetromino[];
+  let updatedCoordinates: { [key: number]: Tetromino };
 
   //let unlistenAutoCanvasUpdater: Unsubscriber;
   let unlistenAutoFillQueue: Unsubscriber;
@@ -49,16 +51,14 @@
   }
 
   function draw(pos: number, erase_mode: boolean) {
-    currentFieldNode.update((field) => {
-      if (field == null) return field;
+    if (erase_mode) editBoard[pos] = Tetromino.Empty;
+    else editBoard[pos] = get(selectedMino);
 
-      if (erase_mode) {
-        field.board[pos] = Tetromino.Empty;
-      } else {
-        field.board[pos] = get(selectedMino);
-      }
-      return field;
-    });
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board: editBoard },
+      })
+    );
   }
 
   async function setupEventListeners() {
@@ -128,7 +128,7 @@
     Object.assign(instance, payload);
 
     if (payload != null) {
-      currentFieldNode.set(instance);
+      currentFieldNode.setValue(instance);
     }
   }
 
@@ -160,10 +160,12 @@
   }
 
   function handlePointerDown(event: FederatedPointerEvent) {
-    suppressFieldUpdateNotification.set(true);
-    boardBeforeEdit = [...get(currentFieldNode)!.board];
+    //  suppressFieldUpdateNotification.set(true);
+    editBoard = [...get(currentFieldNode)!.board];
 
     if (event.button === 0) {
+      pointerIsDown = true;
+
       const pos = (event.target as CellSprite).pos;
       erase_mode = get(currentFieldNode)!.board[pos] !== Tetromino.Empty;
 
@@ -178,7 +180,7 @@
   }
 
   function handlePointerEnter(event: FederatedPointerEvent) {
-    if (is_left_clicking) {
+    if (isLeftClicking && pointerIsDown) {
       const pos = (event.target as CellSprite).pos;
 
       if (get(selectedMino) == 8) {
@@ -263,72 +265,47 @@
 
     const tetromino = TETROMINO_MAP.get(positions);
     if (tetromino == null) {
-      console.error("Invalid tetromino");
+      //  console.error("Invalid tetromino");
       return;
     }
 
-    currentFieldNode.update((env: TetrisEnv | null) => {
-      if (env) {
-        const field = env.board;
-        for (const block of specialBlocks!) {
-          field[block] = tetromino;
-        }
-        env.board = field;
-      }
-      return env;
-    });
+    editBoard = [...get(currentFieldNode)!.board];
 
+    for (const block of specialBlocks!) {
+      editBoard[block] = tetromino;
+    }
+
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board: editBoard },
+      })
+    );
+
+    let cloned = get(currentFieldNode)!.clone();
+    cloned.board = [...editBoard];
     history.update((history: History) => {
-      history.add(
-        $t("common.history-field"),
-        get(currentFieldNode)!.clone(),
-        Tetromino[tetromino]
-      );
+      history.add($t("common.history-field"), cloned, Tetromino[tetromino]);
       return history;
     });
   }
 
   function handlePointerUp(event: FederatedPointerEvent) {
-    if (event.button === 0 && is_left_clicking && specialBlocks === null) {
-      history.update((history: History) => {
-        let count = countBoardDiff(
-          boardBeforeEdit,
-          get(currentFieldNode)!.board
-        );
-        if (count == 0) return history;
-
-        let content: String;
-        if (erase_mode) {
-          content = `<span style="color: red;">-${count}</span>`;
-        } else {
-          content = `${Tetromino[get(selectedMino)]}<span style="color: green;"> +${count}</span>`;
-        }
-
-        history.add(
-          $t("common.history-field"),
-          get(currentFieldNode)!.clone(),
-          content
-        );
-        return history;
-      });
-
-      is_left_clicking = false;
-    }
-
-    suppressFieldUpdateNotification.set(false);
-    //ドラッグ編集が終わった最後に更新を送信
-    //  currentFieldNode.update((env) => {
-    //     return env;
-    //    });
+    pointerUpCommon(event);
   }
 
   function handlePointerUpOutside(event: FederatedPointerEvent) {
-    if (event.button === 0 && is_left_clicking && specialBlocks === null) {
+    pointerUpCommon(event);
+  }
+
+  function pointerUpCommon(event: FederatedPointerEvent) {
+    if (
+      event.button === 0 &&
+      isLeftClicking &&
+      specialBlocks === null &&
+      pointerIsDown
+    ) {
       history.update((history: History) => {
-        let count = countBoardDiff(
-          boardBeforeEdit,
-          get(currentFieldNode)!.board
-        );
+        let count = countBoardDiff(editBoard, get(currentFieldNode)!.board);
         if (count == 0) return history;
 
         let content: String;
@@ -347,11 +324,13 @@
       });
     }
 
-    suppressFieldUpdateNotification.set(false);
-    //ドラッグ編集が終わった最後に更新を送信
-    //   currentFieldNode.update((env) => {
-    //    return env;
-    //  });
+    pointerIsDown = false;
+
+    currentFieldNode.update((env) => {
+      if (env) env.board = [...editBoard];
+      return env;
+    });
+    //editBoard = [];
   }
 
   onMount(async () => {
@@ -374,7 +353,7 @@
 
     //初期化
     selectedMino.set(0);
-    is_left_clicking = false;
+    isLeftClicking = false;
     erase_mode = false;
 
     //初期状態のボードを履歴に追加
@@ -407,13 +386,13 @@
 
   function handleMouseDown(event: MouseEvent) {
     if (event.button === 0) {
-      is_left_clicking = true;
+      isLeftClicking = true;
     }
   }
 
   function handleMouseUp(event: MouseEvent) {
     if (event.button === 0) {
-      is_left_clicking = false;
+      isLeftClicking = false;
     }
   }
 

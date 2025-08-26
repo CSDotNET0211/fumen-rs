@@ -224,6 +224,7 @@ export function getNodeDatabase(id: number): DatabaseNode | null {
 
 			}
 			break;
+		default: throw new Error(`Unknown node type: ${type}`);
 	}
 
 	return returnNode;
@@ -322,7 +323,7 @@ export async function updateThumbnailDatabase(id: number) {
 
 	const thumbnailHash = SHA256(JSON.stringify(fieldNode.data)).toString();
 
-	if (thumbnailHash == fieldNode.thumbnail) {
+	if (thumbnailHash == fieldNode.thumbnail && fieldNode.thumbnail != undefined) {
 		return;
 	}
 

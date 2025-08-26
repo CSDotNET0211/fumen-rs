@@ -14,8 +14,8 @@ export class OnlineNodeUpdater extends NodeUpdater {
 		return await sendCreateNodeWS(node);
 
 	}
-	async delete(nodeId: number): Promise<void> {
+	async delete(node: DatabaseNode): Promise<void> {
 
-		await sendDeleteNodeWS(nodeId);
+		await sendDeleteNodeWS(node);
 	}
 }
