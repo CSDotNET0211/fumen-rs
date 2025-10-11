@@ -33,7 +33,7 @@
     history.update((history: History) => {
       history.add(
         $t("common.history-apply-shapshot") + " " + index,
-        get(currentFieldNode)!.clone(),
+        currentFieldNode.get()!.clone(),
         ""
       );
       return history;
@@ -41,7 +41,7 @@
   }
 
   async function handleAddClick() {
-    let env = get(currentFieldNode)!.clone();
+    let env = currentFieldNode.get()!.clone();
     let thumbnail = await getCanvasImage();
     let title = "Snapshot " + (get(snapshot).length + 1);
 

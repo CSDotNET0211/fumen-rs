@@ -4,6 +4,13 @@ import SplashWindow from "../../features/windows/splash/splashWindow.svelte";
 import PreferencesWindow from "../../features/windows/preferences/preferencesWindow.svelte";
 import CanvasWindow from "../../features/windows/canvas/canvasWindow.svelte";
 
+
+export const DEFAULT_WINDOW_WIDTH = 532;
+export const DEFAULT_WINDOW_HEIGHT = 770;
+
+export const DEFAULT_TETRIS_CANVAS_WIDTH = 310;
+export const DEFAULT_TETRIS_CANVAS_HEIGHT = 713;
+
 export enum WindowType {
 	Field,
 	Splash,

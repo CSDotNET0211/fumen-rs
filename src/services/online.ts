@@ -11,28 +11,48 @@ import { OnlineNodeUpdater } from "../core/nodes/NodeUpdater/onlineNodeUpdater";
 import { LocalNodeUpdater } from "../core/nodes/NodeUpdater/localNodeUpdater";
 import { FieldDatabaseNode } from "../core/nodes/DatabaseNode/fieldDatabaseNode";
 import { resolveDatabaseNode } from "../core/nodes/DatabaseNode/resolver";
-import { currentWindow, WindowFadeDuration } from "../app/stores/window";
+import { currentWindow, DEFAULT_TETRIS_CANVAS_HEIGHT, DEFAULT_TETRIS_CANVAS_WIDTH, WindowFadeDuration } from "../app/stores/window";
+import { tetrisBoardApp } from "../features/windows/field/modules/tetrisBoard.svelte";
 
-type CursorStruct = { x: number; y: number };
+type CursorStruct = { x: number; y: number, location: number | null };
 export type CursorInfo = {
 	name: string;
 	color: string;
 	x: number;
 	y: number;
-	opacity: number;
+	location: number | null;
 };
 
 export let wsSocket: Socket | null = null;
 export const players = writable<Set<{ id: string; name: string; color: string }>>(
 	new Set()
 );
-
 export const cursors: Writable<{ [id: string]: CursorInfo }> = writable({});
+
+//export const cursors: Writable<{ [id: string]: CursorInfo }> = writable({});
 export const isConnecting = writable(false);
 export const isConnected = writable(false);
 
 //export const isHost = writable(false);
 //let ignoreSubscriber: boolean = false;
+
+const COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'];
+
+function assignColors(playersList: { id: string; name: string; color: string }[]) {
+	cursors.update(() => {
+		const newCursors: { [id: string]: CursorInfo } = {};
+		playersList.forEach((player, index) => {
+			newCursors[player.id] = {
+				name: player.name,
+				color: COLORS[index % COLORS.length],
+				x: -100,
+				y: -100,
+				location: null
+			};
+		});
+		return newCursors;
+	});
+}
 
 export function connectWS() {
 	isConnecting.set(true);
@@ -47,6 +67,8 @@ export function disconnectWS() {
 	wsSocket?.disconnect();
 }
 
+// 自分のIDを保存する変数を追加
+let myPlayerId: string | null = null;
 
 export async function joinRoomWS(
 	roomName: string,
@@ -64,31 +86,40 @@ export async function joinRoomWS(
 		return;
 	}
 
+	const { roomPlayers, isHost, playerId }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean, playerId: string } = await wsSocket?.emitWithAck("join_room", roomName, userName);
+	console.log(roomPlayers, isHost, playerId);
 
-	const { roomPlayers, isHost }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean } = await wsSocket?.emitWithAck("join_room", roomName, userName);
 	players.set(new Set(roomPlayers));
-	//	isHost.set(isHostValue);
 
-	console.log("host:", isHost);
+	// Register cursors for all players in the room with local colors (自分以外)
+
+	myPlayerId = wsSocket?.id ?? "";
+
+	assignColors(roomPlayers.filter(player => player.id !== myPlayerId));
+
+	// Register tetris board move event listener
+	document.addEventListener("onTetrisBoardMove", onTetrisBoardMove);
+
+	// Start position update interval
+	positionSendInterval = setInterval(sendPositionIfChanged, 50);
+
 	if (!isHost) {
 		const dbBin = await getHostDB();
-
-		const window = get(currentWindow);
-
-		document.addEventListener("onWindowTransitionEnd", async () => {
-			await new Promise(resolve => setTimeout(resolve, 100));
-			const firstFieldResult = getLatestFieldId();
-			if (firstFieldResult) {
-				currentFieldIndex.set(firstFieldResult);
-				currentWindow.set(window);
-				WindowFadeDuration.set(300);
-			}
-		}, { once: true });
-
-		loadDatabase(dbBin);
+		loadDatabase(dbBin, true);
 	}
 	nodeUpdater.set(new OnlineNodeUpdater());
 }
+
+
+export async function sendUpdateDatabaseWS(dbBin: Uint8Array, useSplash: boolean): Promise<void> {
+	const response = await wsSocket?.emitWithAck("update_db", dbBin, useSplash);
+	const uIntResponse = new Uint8Array(response);
+	console.log(response);
+
+	loadDatabase(uIntResponse, true);
+}
+
+
 
 export function throwErrorServer() {
 	wsSocket?.emit("debug_throw_error");
@@ -100,12 +131,12 @@ export async function sendCreateNodeWS(node: DatabaseNode): Promise<any> {
 
 	const uIntResponse = new Uint8Array(response);
 	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
-	console.log(databaseNode);
-	createNodeDatabase(databaseNode);
+	return createNodeDatabase(databaseNode);
 }
 
 export async function sendUpdateNodeWS(node: DatabaseNode): Promise<any> {
-	const response = await wsSocket?.emitWithAck("update_node", BSON.serialize(node));
+	const data = BSON.serialize(node);
+	const response = await wsSocket?.emitWithAck("update_node", data);
 
 	const uIntResponse = new Uint8Array(response);
 	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
@@ -115,6 +146,7 @@ export async function sendUpdateNodeWS(node: DatabaseNode): Promise<any> {
 
 export async function sendDeleteNodeWS(node: DatabaseNode): Promise<any> {
 	throw new Error("Not implemented");
+	//TODO: aaa
 	return new Promise((resolve, reject) => {
 		wsSocket?.once("node_deleted", (response: any) => {
 			resolve(response);
@@ -127,8 +159,40 @@ export async function sendDeleteNodeWS(node: DatabaseNode): Promise<any> {
 
 export async function getHostDB(): Promise<Uint8Array> {
 	const response = await wsSocket?.emitWithAck("request_db");
-	const uIntResponse = new Uint8Array(response[0]);
-	return uIntResponse;
+	console.log(response);
+	const uint8Array = new Uint8Array(response);
+	//const uIntResponse = new Uint8Array(response[0]);
+	return uint8Array;
+}
+
+let currentMousePosition: { x: number; y: number; location: number | null } = { x: -1, y: -1, location: null };
+let lastSentPosition: { x: number; y: number; location: number | null } = { x: -1, y: -1, location: null };
+let positionSendInterval: NodeJS.Timeout | null = null;
+
+function onTetrisBoardMove(event: Event) {
+	const data = (event as CustomEvent).detail;
+	//console.log((event as CustomEvent).detail);
+
+	//元のwindowsizeの比率に変換して、送信
+	//受信側では、clientXとclientYを元のcanvasのサイズで割って、比率を求める
+	const canvas = tetrisBoardApp?.canvas;
+	if (!canvas) return;
+
+	const scaleX = DEFAULT_TETRIS_CANVAS_WIDTH / canvas.clientWidth;
+	const scaleY = DEFAULT_TETRIS_CANVAS_HEIGHT / canvas.clientHeight;
+	currentMousePosition = {
+		x: (data.clientX - (tetrisBoardApp?.canvas.getBoundingClientRect().left ?? 0)) * scaleX,
+		y: (data.clientY - (tetrisBoardApp?.canvas.getBoundingClientRect().top ?? 0)) * scaleY,
+		location: get(currentFieldIndex)
+	};
+}
+
+function sendPositionIfChanged() {
+	if (currentMousePosition.x !== lastSentPosition.x || currentMousePosition.y !== lastSentPosition.y || currentMousePosition.location !== lastSentPosition.location) {
+		wsSocket?.emit("update_cursor", currentMousePosition);
+
+		lastSentPosition = { ...currentMousePosition };
+	}
 }
 
 function registerEvents(wsSocket: Socket) {
@@ -151,32 +215,50 @@ function registerEvents(wsSocket: Socket) {
 		isConnected.set(false);
 		isConnecting.set(false);
 
+		// 自分のIDをリセット
+		myPlayerId = null;
+
 		players.update((set) => {
 			set.clear();
 			return set;
 		});
 
+		// Clear all cursors on disconnect
+		cursors.set({});
+
+		// Remove tetris board move event listener
+		document.removeEventListener("onTetrisBoardMove", onTetrisBoardMove);
+
+		// Clear position update interval
+		if (positionSendInterval) {
+			clearInterval(positionSendInterval);
+			positionSendInterval = null;
+		}
+
 		nodeUpdater.set(new LocalNodeUpdater());
 	});
-
-	wsSocket.on("request_db", (callback) => {
+	wsSocket.on("request_db", async (args, ack) => {
+		console.log(args, ack);
 		const data = getDatabaseAsBinary();
-		callback(data);
+		ack(data);
 	});
 
 	wsSocket.on(
 		"update_cursor",
-		(cursorUpdates: { id: string; cursor: CursorStruct | null }[]) => {
-			cursorUpdates.forEach(({ id, cursor }) => {
+		(updateCursors: { id: string; cursor: CursorStruct | null }[]) => {
+			updateCursors.forEach(({ id, cursor }) => {
+				if (id === myPlayerId) return;
+
 				cursors.update((current) => {
 					if (current[id]) {
 						if (cursor != null) {
 							current[id] = {
 								...current[id],
-								x: cursor.x ?? -1,
-								y: cursor.y ?? -1,
-								opacity: 1,
+								x: cursor.x,
+								y: cursor.y,
+								location: cursor.location
 							};
+
 						} else {
 							delete current[id];
 						}
@@ -192,45 +274,49 @@ function registerEvents(wsSocket: Socket) {
 		(newPlayer: { id: string; name: string; color: string }) => {
 			players.update((players) => {
 				players.add(newPlayer);
+				console.log(players);
 				return players;
 			});
+			console.log("someone_join_room", newPlayer, myPlayerId);
+			// Reassign colors for all players (自分以外)
+			assignColors([...get(players)].filter(player => player.id !== myPlayerId));
 		}
 	);
 
 	wsSocket.on("someone_leave_room", (playerId: string) => {
+		console.log("someone_leave_room", playerId, myPlayerId);
+		console.log(players);
 		players.set(
 			new Set([...get(players)].filter((player) => player.id !== playerId))
 		);
+
+		// Reassign colors for remaining players (自分以外)
+		assignColors([...get(players)].filter(player => player.id !== myPlayerId));
 	});
 
-	wsSocket.on("node_updated", (nodeBson: Uint8Array) => {
-		const uIntResponse = new Uint8Array(nodeBson);
-		const databaseNodeObj = BSON.deserialize(uIntResponse);
-		const databaseNode = resolveDatabaseNode(databaseNodeObj);
-		updateNodeDatabase(databaseNode);
-	});
-
-	wsSocket.on("node_created", (nodeBson: Uint8Array) => {
-		const uIntResponse = new Uint8Array(nodeBson);
-		const databaseNodeObj = BSON.deserialize(uIntResponse);
-		const databaseNode = resolveDatabaseNode(databaseNodeObj);
-		createNodeDatabase(databaseNode);
-	});
-
-	wsSocket.on("node_deleted", (nodeBson: Uint8Array) => {
-		const uIntResponse = new Uint8Array(nodeBson);
-		const databaseNodeObj = BSON.deserialize(uIntResponse);
-		const databaseNode = resolveDatabaseNode(databaseNodeObj);
-		deleteNodeDatabase(databaseNode);
-	});
 
 	wsSocket.on("error", (error) => {
 		console.error("WebSocket error:", error);
 	});
 
+
+	wsSocket.on("update_db", (dbBin: ArrayBuffer, useSplash: boolean, ack) => {
+		const uIntResponse = new Uint8Array(dbBin);
+
+		console.log(dbBin, useSplash, ack);
+
+		loadDatabase(uIntResponse, true);
+
+		if (ack)
+			ack(uIntResponse);
+	});
+
+
 	wsSocket.on("update_node", async (nodeBson: Uint8Array, callback) => {
 		const uIntResponse = new Uint8Array(nodeBson);
 		const databaseNodeObj = BSON.deserialize(uIntResponse);
+
+		console.log("update_node");
 
 		const databaseNode = resolveDatabaseNode(databaseNodeObj);
 		updateNodeDatabase(databaseNode);
@@ -238,5 +324,24 @@ function registerEvents(wsSocket: Socket) {
 			callback(nodeBson);
 
 	});
-}
 
+	wsSocket.on("create_node", async (nodeBson: Uint8Array, callback) => {
+		const uIntResponse = new Uint8Array(nodeBson);
+		const databaseNodeObj = BSON.deserialize(uIntResponse);
+
+		const databaseNode = resolveDatabaseNode(databaseNodeObj);
+		createNodeDatabase(databaseNode);
+		if (callback)
+			callback(nodeBson);
+	});
+
+	wsSocket.on("delete_node", async (nodeBson: Uint8Array, callback) => {
+		const uIntResponse = new Uint8Array(nodeBson);
+		const databaseNodeObj = BSON.deserialize(uIntResponse);
+
+		const databaseNode = resolveDatabaseNode(databaseNodeObj);
+		deleteNodeDatabase(databaseNode);
+		if (callback)
+			callback(nodeBson);
+	});
+}

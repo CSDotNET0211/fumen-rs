@@ -4,7 +4,6 @@
 
   import { GameConfig } from "../app/gameConfig.ts";
   import { loadTranslations, t } from "../translations/translations.ts";
-  import { TeachableMachine } from "../teachableMachine.ts";
 
   import { shortcuts } from "../core/shortcuts/shortcuts.ts";
 
@@ -46,6 +45,8 @@
     nodeUpdater,
   } from "../core/nodes/NodeUpdater/nodeUpdater.ts";
   import { LocalNodeUpdater } from "../core/nodes/NodeUpdater/localNodeUpdater.ts";
+  import Cursor from "../features/common/cursor/cursor.svelte";
+  import { cursors } from "../services/online.ts";
 
   window.IS_WEB_MODE = false;
 
@@ -53,6 +54,9 @@
 
   onMount(async () => {
     // if (!window.IS_WEB_MODE) {
+
+    nodeUpdater.set(new LocalNodeUpdater());
+
     try {
       unlistenSaveWindowSizeOnResize = await listen<string>(
         "tauri://save-window-size",
@@ -95,18 +99,15 @@
     await initializeTetrisBoard();
     await registerCommands();
     await registerShortcuts();
-    await initializeTeachableMachine();
     await initialize();
     await initializeDatabase();
     reloadMenuItems();
     reloadStatusPanels();
 
-    nodeUpdater.set(new LocalNodeUpdater());
-
-    //    const response = await fetch("./static/unknown.png");
+    //  const response = await fetch("./static/unknown.png");
     //  const blob = await response.blob();
     //  const reader = new FileReader();
-    // reader.onloadend = () => {
+    //  reader.onloadend = () => {
     //   unknownThumbnailBase64.set(reader.result as string);
     // };
     //reader.readAsDataURL(blob);
@@ -120,7 +121,7 @@
     currentWindow.set(WindowType.Field);
     // initializeDataStore();
     /*
-    let result: Uint8Array = BSON.serialize(get(currentFieldNode)!);
+    let result: Uint8Array = BSON.serialize(currentFieldNode.get()!);
     console.log(result);
     console.log("Byte size:", result.byteLength);
     const doc = BSON.deserialize(result);
@@ -147,16 +148,6 @@
     window.removeEventListener("mouseup", handleMouseButton);
     unlistenSaveWindowSizeOnResize();
   });
-
-  async function initializeTeachableMachine() {
-    const URL = get(gameConfig)?.fumenImageRecognitionModelURL;
-    const metadata = URL + "metadata.json";
-    const model = URL + "model.json";
-
-    const teachableMachine = new TeachableMachine(model, metadata);
-    await teachableMachine.init();
-    //teachableMachineModel.set(teachableMachine);
-  }
 
   function handleShortcutInternal(event: KeyboardEvent) {
     if (event.ctrlKey && event.key === "f") {

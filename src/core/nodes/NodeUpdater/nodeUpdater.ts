@@ -13,4 +13,5 @@ export abstract class NodeUpdater {
 	abstract update(node: DatabaseNode): Promise<void>;
 	abstract create(node: DatabaseNode): Promise<number>;
 	abstract delete(node: DatabaseNode): Promise<void>;
+	abstract load(dbBin: Uint8Array, useSplash: boolean): Promise<void>;
 }

@@ -8,6 +8,8 @@ import { CanvasNode } from "./canvasNode";
 import { getNodeDatabase } from "../../../../core/nodes/db";
 import { selectedNodeId } from "../selectionStore";
 import { currentWindow, WindowType } from "../../../../app/stores/window";
+import { currentFieldIndex, currentFieldNode } from "../../../../app/stores/data";
+import { open } from "../contextMenu.svelte";
 
 export class FieldCanvasNode extends CanvasNode {
 	isDragging: boolean;
@@ -70,12 +72,66 @@ export class FieldCanvasNode extends CanvasNode {
 
 	dblClick(e: MouseEvent): void {
 		e.stopPropagation();
-		selectedNodeId.set(this.id);
+		currentFieldIndex.set(this.id);
 		currentWindow.set(WindowType.Field);
 	}
 
 	click(e: MouseEvent): void {
 
+	}
+
+	rightClick(e: MouseEvent): void {
+		e.stopPropagation();
+		e.preventDefault();
+		open({
+			x: e.clientX,
+			y: e.clientY,
+			items: [
+				{
+					name: "開く",
+					action: () => {
+						currentFieldIndex.set(this.id);
+						currentWindow.set(WindowType.Field);
+					}
+				},
+				{
+					name: "複製",
+					action: async () => {
+						const node = getNodeDatabase(this.id);
+						node!.id = undefined;
+						const newIndex = await get(nodeUpdater)?.create(node!)!;
+						const newNode = getNodeDatabase(newIndex) as FieldDatabaseNode;
+						get(nodeUpdater)?.update(new FieldDatabaseNode(newIndex, newNode!.x! + 50, newNode!.y! + 50, undefined, undefined));
+					}
+				},
+				/*
+				{
+					name: "接続削除 (From)",
+					action: () => {
+						// Delete connections where this node is the source
+						if (db) {
+							db.run(`DELETE FROM connections WHERE from_id = ?;`, [this.id]);
+						}
+					}
+				},
+				{
+					name: "接続削除 (To)",
+					action: () => {
+						// Delete connections where this node is the target
+						if (db) {
+							db.run(`DELETE FROM connections WHERE to_id = ?;`, [this.id]);
+						}
+					}
+				},*/
+				{
+					name: "削除",
+					action: () => {
+						const node = getNodeDatabase(this.id);
+						get(nodeUpdater)?.delete(node!);
+					}
+				}
+			]
+		});
 	}
 
 

@@ -11,6 +11,7 @@ import { get } from "svelte/store";
 import { currentWindow, WindowFadeDuration, WindowType } from "../../app/stores/window";
 import { currentFieldIndex } from "../../app/stores/data";
 import { currentField, FieldType } from "../../features/windows/field/field";
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../features/windows/canvas/const";
 let SQL: initSqlJs.SqlJsStatic;
 let db: Database | null = null;
 
@@ -31,18 +32,27 @@ export async function initializeDatabase() {
 		locateFile: (file: any) => `${file}`
 	});
 
-	resetDatabase();
+	//resetDatabase();
+	get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary(), false);
+
 
 }
+/*
 export function resetDatabase() {
 	db?.close();
 	db = new SQL.Database();
 
-	db.run(`DROP TABLE IF EXISTS nodes;`);
-	db.run(`DROP TABLE IF EXISTS connections;`);
-	db.run(`DROP TABLE IF EXISTS field_data;`);
-	db.run(`DROP TABLE IF EXISTS text_data;`);
-	db.run(`DROP TABLE IF EXISTS config;`);
+	get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary());
+
+//	let customEvent = new CustomEvent("databaseLoaded");
+//	document.dispatchEvent(customEvent);
+
+}
+
+*/
+
+export function generateDefaultDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
+	let db: Database = new SQL.Database();
 
 	db.run(`
 		CREATE TABLE nodes (
@@ -53,8 +63,8 @@ export function resetDatabase() {
 
 	db.run(`
 		CREATE TABLE connections (
-			from_id INTEGER,
-			to_id INTEGER,
+			from_id INTEGER ,
+			to_id INTEGER ,
 			direction_from TEXT, --  fromノードのどの方向から
 			direction_to TEXT,   --  toノードのどの方向へ
 			PRIMARY KEY (from_id, to_id, direction_from, direction_to),
@@ -77,7 +87,7 @@ export function resetDatabase() {
 
 	db.run(`
 		CREATE TABLE text_data (
-			id INTEGER PRIMARY KEY ,
+			id INTEGER PRIMARY KEY,
 			x REAL,
 			y REAL,
 			size INTEGER,
@@ -95,22 +105,54 @@ export function resetDatabase() {
 	`);
 	db.run(`INSERT INTO config (version) VALUES (1);`);
 
-}
 
-export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>) {
-	if (!db) {
-		throw new Error("Database is not initialized.");
-	}
+	const insertSql = `INSERT INTO nodes (type) VALUES (?)`;
+	db.run(insertSql, ["field"]);
+	const nodeIdResult = db.exec("SELECT last_insert_rowid()");
+	const nodeId = nodeIdResult[0].values[0][0] as number;
+
+	const fieldColumns: string[] = ["id"];
+	const fieldValues: any[] = [nodeId];
+
+	fieldColumns.push("data");
+	fieldValues.push(JSON.stringify(new TetrisEnv()));
+
+	fieldColumns.push("x");
+	fieldValues.push(CANVAS_WIDTH / 2);
+
+	fieldColumns.push("y");
+	fieldValues.push(CANVAS_HEIGHT / 2);
+
+
+	const fieldSql = `INSERT INTO field_data (${fieldColumns.join(", ")}) VALUES (${fieldColumns.map(() => "?").join(", ")})`;
+	db.run(fieldSql, fieldValues);
+
+
+	return db.export();
+}
+export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>, useSplash: boolean) {
 	db = new SQL.Database(dbData);
 
+	if (useSplash) {
+		const originalWindow = get(currentWindow);
 
+		document.addEventListener("onWindowTransitionEnd", async () => {
+			await new Promise(resolve => setTimeout(resolve, 100));
+			const firstFieldResult = getLatestFieldId();
+			if (firstFieldResult) {
+				currentFieldIndex.set(firstFieldResult);
+				currentWindow.set(originalWindow);
+				WindowFadeDuration.set(300);
+			}
+		}, { once: true });
 
-
-	currentField.set(FieldType.TetrisEdit);
-	currentWindow.set(WindowType.Splash);
-	currentFieldIndex.set(-1);
-
-
+		currentField.set(FieldType.TetrisEdit);
+		currentWindow.set(WindowType.Splash);
+		currentFieldIndex.set(-1);
+	} else {
+		const firstFieldResult = getLatestFieldId();
+		currentFieldIndex.set(firstFieldResult!);
+	}
 
 	const event = new CustomEvent("databaseLoaded");
 	document.dispatchEvent(event);
@@ -149,6 +191,8 @@ export function createNodeDatabase(updateNode: DatabaseNode): number {
 	const index = updateNode.createNode(db);
 	return index;
 }
+
+
 
 export function deleteNodeDatabase(node: DatabaseNode) {
 	if (!db) {
@@ -311,6 +355,7 @@ export async function updateThumbnailDatabase(id: number) {
 	}
 
 	const node = getNodeDatabase(id);
+
 	if (!node) {
 		throw new Error(`Node with id ${id} not found.`);
 	}
@@ -334,7 +379,6 @@ export async function updateThumbnailDatabase(id: number) {
 
 export async function updateAllThumbnailsDatabase() {
 	const fieldNodes = getAllFieldNodesDatabase();
-
 	for (const fieldNode of fieldNodes) {
 		await updateThumbnailDatabase(fieldNode.id!);
 	}

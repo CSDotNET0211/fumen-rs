@@ -2,17 +2,19 @@ import { writable, type Writable } from "svelte/store";
 import HistoryStatusPanel from "./components/history/statusPanel.svelte";
 import OnlineStatusPanel from "./components/online/statusPanel.svelte";
 import NotificationStatusPanel from "./components/notification/statusPanel.svelte";
+import LoginStatusPanel from "./components/login/statusPanel.svelte";
 
 import HistoryPopupPanel from "./components/history/popupPanel.svelte";
 import OnlinePopupPanel from "./components/online/popupPanel.svelte";
 import NotificationPopupPanel from "./components/notification/popupPanel.svelte";
-
+import LoginPopupPanel from "./components/login/popupPanel.svelte";
 
 export enum StatusPanelType {
 	None,
 	History,
 	Online,
-	Notifications
+	Notifications,
+	Login
 }
 
 export let currentOpenedStatus = writable<StatusPanelType>(StatusPanelType.None);
@@ -28,8 +30,9 @@ export function reloadStatusPanels(): void {
 	StatusPopupPanels.set(StatusPanelType.History, HistoryPopupPanel);
 	StatusPopupPanels.set(StatusPanelType.Online, OnlinePopupPanel);
 	StatusPopupPanels.set(StatusPanelType.Notifications, NotificationPopupPanel);
+	StatusPopupPanels.set(StatusPanelType.Login, LoginPopupPanel);
 
-	statusPanels.set([HistoryStatusPanel, OnlineStatusPanel, NotificationStatusPanel]);
+	statusPanels.set([HistoryStatusPanel, OnlineStatusPanel, LoginStatusPanel,]);
 
 }
 

@@ -20,7 +20,7 @@
   onMount(async () => {
     document.addEventListener("onupdatenext", handleUpdateNext);
 
-    let next = get(currentFieldNode)!.next;
+    let next = currentFieldNode.get()!.next;
     updateNext(next);
   });
 

@@ -1,77 +1,168 @@
-use candle_core::Device;
-use candle_nn::Linear;
+use axum::{routing::get, Router};
+use core::panic;
+use keyring::{Entry, Result as KeyringResult};
 use libloading::Library;
 use rand::Rng;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::{LazyLock, Mutex, OnceLock};
-use std::vec;
+use std::thread;
 use sys_locale::get_locale;
 use tauri::{LogicalSize, Size, Window};
-
-mod model;
+use tokio::sync::oneshot;
 
 static BEFORE_WINDOW_SIZE: OnceLock<(u32, u32)> = OnceLock::new();
-
+static AXUM_SERVER_RUNNING: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(false));
+static AXUM_SERVER_SHUTDOWN: OnceLock<Mutex<Option<oneshot::Sender<()>>>> = OnceLock::new();
 #[tauri::command]
-fn test() {
-    return;
-    let mut rng = rand::thread_rng();
-    let random_vec: Vec<f32> = (0..600).map(|_| rng.gen_range(0.0..1.0)).collect();
-    model::test(&random_vec);
+async fn start_axum_server(port: u16) -> Result<(), String> {
+    if AXUM_SERVER_RUNNING.load(Ordering::Relaxed) {
+        return Err("Server is already running".to_string());
+    }
+
+    let (tx, rx) = oneshot::channel::<()>();
+    AXUM_SERVER_SHUTDOWN
+        .set(Mutex::new(Some(tx)))
+        .map_err(|_| "Failed to set shutdown channel")?;
+
+    let app = Router::new()
+        .route("/", get(handler))
+        .route("/callback", get(oauth_callback_handler));
+
+    AXUM_SERVER_RUNNING.store(true, Ordering::Relaxed);
+
+    tokio::spawn(async move {
+        let addr = format!("127.0.0.1:{}", port);
+        let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+        println!("listening on {}", listener.local_addr().unwrap());
+
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                rx.await.ok();
+            })
+            .await
+            .unwrap();
+
+        AXUM_SERVER_RUNNING.store(false, Ordering::Relaxed);
+    });
+
+    Ok(())
 }
+async fn oauth_callback_handler(
+    query: axum::extract::Query<HashMap<String, String>>,
+) -> &'static str {
+    if let Some(code) = query.get("code") {
+        // Use the same token exchange process as get_token_from_auth
+        let client = Client::new();
+        let url = "http://localhost:3030/authorize";
 
-#[tauri::command]
-fn train_data(values: Vec<Vec<f32>>) {
-    let mut model = model::Model::default();
-    model.train(values);
-}
+        let mut params = HashMap::new();
+        params.insert("code", code.clone());
 
-#[tauri::command]
-fn guess_data(values: Vec<f32>) {
-    let model = model::Model::load("model.bin", &Device::Cpu).unwrap();
-
-    let result = model.predict(&values).unwrap();
-    dbg!(&result);
-    //model.train(values);
-}
-
-#[tauri::command]
-fn get_train_data_path(folder_path: String) -> HashMap<String, Vec<String>> {
-    let mut folder_map = HashMap::new();
-    let base_path = PathBuf::from(folder_path);
-
-    if let Ok(entries) = fs::read_dir(&base_path) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    let folder_name = path.file_name().unwrap().to_string_lossy().to_string();
-                    let mut file_list = Vec::new();
-
-                    if let Ok(sub_entries) = fs::read_dir(&path) {
-                        for sub_entry in sub_entries {
-                            if let Ok(sub_entry) = sub_entry {
-                                let sub_path = sub_entry.path();
-                                if sub_path.is_file() {
-                                    if let Some(file_name) = sub_path.file_name() {
-                                        file_list.push(file_name.to_string_lossy().to_string());
-                                    }
-                                }
-                            }
+        match client.post(url).json(&params).send().await {
+            Ok(response) => {
+                match response.text().await {
+                    Ok(token) => {
+                        // Save token using keyring
+                        if let Err(e) = save_token_to_keyring(&token) {
+                            eprintln!("Failed to save token: {}", e);
                         }
                     }
+                    Err(e) => {
+                        eprintln!("Failed to read response: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("Request failed: {}", e);
+            }
+        }
+    }
+    "Authorization complete. You can close this window."
+}
+#[tauri::command]
+async fn get_token_from_auth(code: String) -> Result<String, String> {
+    let client = Client::new();
+    let url = "http://localhost:3030/authorize";
 
-                    folder_map.insert(folder_name, file_list);
+    let mut params = HashMap::new();
+    params.insert("code", code);
+
+    let response = client
+        .post(url)
+        .json(&params)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    let token = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    Ok(token)
+}
+
+async fn exchange_code_for_token(code: &str) -> Result<String, String> {
+    // Implement OAuth token exchange logic here
+    // This is a placeholder - replace with actual OAuth implementation
+    Ok(format!("token_for_{}", code))
+}
+
+fn save_token_to_keyring(token: &str) -> KeyringResult<()> {
+    let entry = Entry::new("fumen-rs", "oauth-token")?;
+    entry.set_password(token)?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn stop_axum_server() -> Result<(), String> {
+    if !AXUM_SERVER_RUNNING.load(Ordering::Relaxed) {
+        return Err("Server is not running".to_string());
+    }
+
+    if let Some(shutdown_guard) = AXUM_SERVER_SHUTDOWN.get() {
+        if let Ok(mut shutdown) = shutdown_guard.lock() {
+            if let Some(tx) = shutdown.take() {
+                let _ = tx.send(());
+                return Ok(());
+            }
+        }
+    }
+
+    Err("Failed to stop server".to_string())
+}
+
+async fn handler() -> &'static str {
+    "Hello, World!"
+}
+
+#[tauri::command]
+async fn trigger_oauth() -> Result<String, String> {
+    // OAuth trigger logic here
+    Ok("OAuth triggered".to_string())
+}
+
+#[tauri::command]
+fn get_folder_children_absolute_path(folder_path: String) -> Vec<String> {
+    let path = PathBuf::from(folder_path);
+    let mut children_paths = Vec::new();
+
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                if let Some(path_str) = entry.path().to_str() {
+                    children_paths.push(path_str.to_string());
                 }
             }
         }
     }
 
-    folder_map
+    children_paths
 }
 
 #[tauri::command]
@@ -245,7 +336,6 @@ async fn search_bot_best(
         let lib_lock = lib.lock().unwrap();
 
         // println!("Loading bot: assets/bot/{}.dll", bot_name);
-
         let cc_search: libloading::Symbol<
             unsafe extern "C" fn(
                 *const std::os::raw::c_char,
@@ -301,6 +391,18 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_opener::init())
+        .register_uri_scheme_protocol("fumenrslogin", move |_app, request| {
+            panic!("Called custom protocol");
+            println!("Scheme: {}", request.uri());
+            println!("Method: {}", request.method());
+            println!("Headers: {:?}", request.headers());
+
+            tauri::http::Response::builder()
+                .status(200)
+                .header("Content-Type", "text/html")
+                .body("OK".as_bytes().to_vec())
+                .unwrap()
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             get_bot_dlls,
@@ -313,11 +415,11 @@ pub fn run() {
             initialize_window,
             set_window_size,
             get_window_size,
-            test,
-            get_train_data_path,
-            train_data,
-            guess_data,
-            get_args
+            get_folder_children_absolute_path,
+            get_args,
+            start_axum_server,
+            stop_axum_server,
+            trigger_oauth
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

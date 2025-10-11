@@ -18,10 +18,11 @@ import { getCanvasImage } from "../../features/windows/field/modules/tetrisBoard
 import { history } from "../../app/stores/history.ts";
 import { fumenImage, fumenPages, snapshot } from "../../app/stores/misc.ts";
 import { currentWindow, WindowType } from "../../app/stores/window.ts";
-import { resetDatabase } from "../nodes/db.ts";
+import { generateDefaultDatabaseAsBinary, getDatabaseAsBinary, getLatestFieldId, loadDatabase, } from "../nodes/db.ts";
 import { nodeUpdater } from "../nodes/NodeUpdater/nodeUpdater.ts";
 import { FieldDatabaseNode } from "../nodes/DatabaseNode/fieldDatabaseNode.ts";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "../../features/windows/canvas/const.ts";
+import { sendUpdateDatabaseWS, wsSocket } from "../../services/online.ts";
 
 
 
@@ -44,8 +45,6 @@ async function setProcessImageMode(image: TauriImage | HTMLImageElement) {
 }
 
 export function registerCommands() {
-	console.log("コマンド登録");
-	// Command: fumen.new
 	commands.registerCommand(
 		new Command("fumen.new", async (showConfirmDialog: boolean) => {
 			if (showConfirmDialog === true) {
@@ -53,39 +52,29 @@ export function registerCommands() {
 				if (!confirmed) return;
 			}
 
-			/*			fields.update((currentFields) => {
-							return {
-								...currentFields,
-								[0]: new TetrisEnv(),
-							};
-						});*/
-			resetDatabase();
-
 			//1 -> 1のときは更新されないので、強制的に-1にしておく
 			currentFieldIndex.set(-1);
-
-			const index = await get(nodeUpdater)!.create(new FieldDatabaseNode(undefined, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, undefined, new TetrisEnv()));
-
-			currentFieldIndex.set(index);
+			await get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary(), false);
 
 			history.set(new History());
-			console.log(get(currentFieldNode));
 			history.update((history: History) => {
 				history.add(
 					get(t)("common.history-base"),
-					get(currentFieldNode)!.clone(),
+					currentFieldNode.get()!.clone(),
 					"",
 				);
 				return history;
 			});
 
-			let customEvent = new CustomEvent("onReset");
-			document.dispatchEvent(customEvent);
+			//	get(nodeUpdater)!.load
 
 
 			currentField.set(FieldType.TetrisEdit);
 			currentWindow.set(WindowType.Field);
+
 			snapshot.set([]);
+
+
 		}));
 
 	// Command: fumen.open
@@ -101,7 +90,7 @@ export function registerCommands() {
 					},
 					{
 						name: get(t)("common.dialog-fumen-files"),
-						extensions: ["vtr"],
+						extensions: ["sqlite"],
 					},
 					{
 						name: get(t)("common.dialog-image-files"),
@@ -112,41 +101,43 @@ export function registerCommands() {
 
 			if (file !== null) {
 				let webPath = convertFileSrc(file);
-				console.log(webPath);
+				const ext = file.split('.').pop()?.toLowerCase();
+				switch (ext) {
+					case "png":
+					case "jpg":
+					case "jpeg":
+					case "bmp": {
+						const img = new Image();
+						img.crossOrigin = "anonymous";
+						img.src = webPath;
+						img.onload = async () => {
+							await setProcessImageMode(img);
+						};
+						break;
+					}
+					case "sqlite": {
+						const response = await fetch(webPath);
+						const blob = await response.blob();
+						const arrayBuffer = await blob.arrayBuffer();
+						const uint8Array = new Uint8Array(arrayBuffer);
+						console.log(uint8Array);
 
-				if (
-					file.endsWith(".png") ||
-					file.endsWith(".jpg") ||
-					file.endsWith(".jpeg") ||
-					file.endsWith(".bmp")
-				) {
-					const img = new Image();
-					img.crossOrigin = "anonymous";
-					img.src = webPath;
-					img.onload = async () => {
-						await setProcessImageMode(img);
-					};
-				} else if (file.endsWith(".vtr")) {
-					const response = await fetch(webPath);
-					const blob = await response.blob();
-					const arrayBuffer = await blob.arrayBuffer();
-					const uint8Array = new Uint8Array(arrayBuffer);
-					const envMap = TetrisEnv.deserialize({
-						buffer: uint8Array,
-						bufferIndex: 0,
-					});
+						currentFieldIndex.set(-1);
+						await get(nodeUpdater)!.load(uint8Array, false);
 
-					await commands.executeCommand("fumen.new", false);
-					console.log("Loaded TetrisEnv from file:", envMap);
-					throw new Error("Failed to load TetrisEnv from file");
+						//	await commands.executeCommand("fumen.new", false);
+						//	throw new Error("Failed to load TetrisEnv from file");
 
+						//	currentFieldNode.set(envMap);
+						//currentFieldIndex.set(getLatestFieldId()!);
 
-					//	currentFieldNode.set(envMap);
-					currentFieldIndex.set(0);
+						currentField.set(FieldType.TetrisEdit);
+						currentWindow.set(WindowType.Field);
 
-					currentField.set(FieldType.TetrisEdit);
-				} else {
-					console.error("Unsupported file type");
+						break;
+					}
+					default:
+						console.error("Unsupported file type");
 				}
 			}
 
@@ -158,15 +149,16 @@ export function registerCommands() {
 			const path = await save({
 				filters: [
 					{
-						name: "Fumen File",
-						extensions: ["vtr"],
+						name: "SQLite File",
+						extensions: ["sqlite"],
 					},
 				],
-				defaultPath: "fumen.vtr",
+				defaultPath: "fumen",
 			});
 
 			if (path !== null) {
-				let bin = get(currentFieldNode)!.serialize();
+				//let bin = currentFieldNode.get()!.serialize();
+				let bin = await getDatabaseAsBinary();
 				await writeFile(path, bin);
 			}
 		}));
@@ -245,7 +237,7 @@ export function registerCommands() {
 			let fieldStr = "";
 			for (let y = 0; y < 23; y++) {
 				for (let x = 0; x < 10; x++) {
-					switch (get(currentFieldNode)!.board[y * 10 + x]) {
+					switch (currentFieldNode.get()!.board[y * 10 + x]) {
 						case Tetromino.S:
 							fieldStr += "S";
 							break;

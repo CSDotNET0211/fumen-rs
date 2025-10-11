@@ -19,17 +19,19 @@ export class GameConfig {
 	color!: string | null;
 	currentPreset!: string | null;
 	socketAddress!: string | null;
-	fumenImageRecognitionModelURL!: string | null;
 	bgBorderOpacity!: number | null;
 	language!: string | null;
 	ghostPiece!: boolean | null;
 	windowSize!: { width: number; height: number } | undefined;
 	panelPresets: PanelPresets | null = null;
+	imageRecognitionModels: Record<string, string> | null = null;
+	imageRecognitionType: string | null = null;
+	serverPort?: number | null = null;
 
 	constructor() {
 		this.keymaps = new Map<string, Record<string, KeymapEntry>>();
 	}
-	static default(): GameConfig {
+	static async default(): Promise<GameConfig> {
 		let obj = new GameConfig();
 		obj.keymaps!.set("TetrisEdit", {
 			SelectSBlock: { key: "1", editable: false, title: "Select S Block" },
@@ -65,12 +67,16 @@ export class GameConfig {
 		obj.color = "#FFFFFF";
 		obj.currentPreset = "Default";
 		obj.socketAddress = "https://api.csdotnet.dev";
-		obj.fumenImageRecognitionModelURL = "https://teachablemachine.withgoogle.com/models/cr0rQ-61V/";
 		obj.bgBorderOpacity = 0.8;
 		obj.language = "en";
 		obj.ghostPiece = true;
 		obj.windowSize = undefined;
 		obj.panelPresets = PanelPresets.getDefault()
+		obj.imageRecognitionModels = {
+			ppt: await fetch("/ppt.json").then(res => res.json())
+		};
+		obj.imageRecognitionType = "ppt";
+		obj.serverPort = 3002;
 
 		return obj;
 	}
@@ -90,11 +96,13 @@ export class GameConfig {
 			currentPreset: this.currentPreset,
 			socketAddress: this.socketAddress,
 			language: this.language,
-			fumenImageRecognitionModelURL: this.fumenImageRecognitionModelURL,
 			bgBorderOpacity: this.bgBorderOpacity,
 			ghostPiece: this.ghostPiece,
 			windowSize: this.windowSize,
 			panelPresets: this.panelPresets,
+			imageRecognitionModels: this.imageRecognitionModels,
+			imageRecognitionType: this.imageRecognitionType,
+			serverPort: this.serverPort,
 		});
 	}
 
@@ -102,7 +110,6 @@ export class GameConfig {
 		const data = JSON.parse(json);
 		const obj = new GameConfig();
 
-		console.log("Loading config from JSON", data.keymaps);
 		obj.keymaps = new Map<string, Record<string, KeymapEntry>>(Object.entries(data.keymaps || {}));
 		obj.das = data.das;
 		obj.arr = data.arr;
@@ -112,11 +119,13 @@ export class GameConfig {
 		obj.currentPreset = data.currentPreset;
 		obj.socketAddress = data.socketAddress;
 		obj.language = data.language;
-		obj.fumenImageRecognitionModelURL = data.fumenImageRecognitionModelURL;
 		obj.bgBorderOpacity = data.bgBorderOpacity;
 		obj.ghostPiece = data.ghostPiece;
 		obj.windowSize = data.windowSize;
 		obj.panelPresets = data.panelPresets;
+		obj.imageRecognitionModels = data.imageRecognitionModels;
+		obj.imageRecognitionType = data.imageRecognitionType;
+		obj.serverPort = data.serverPort;
 
 		return obj;
 	}
@@ -128,9 +137,8 @@ export class GameConfig {
 		if (IS_WEB_MODE) {
 			let config = localStorage.getItem("config");
 			if (!config) {
-				let gameConfig = GameConfig.default();
+				let gameConfig = await GameConfig.default();
 				let locale = Intl.DateTimeFormat().resolvedOptions().locale;
-				console.log(locale);
 				if (locale === "ja-JP") {
 					gameConfig.language = "ja";
 				} else {
@@ -140,7 +148,6 @@ export class GameConfig {
 				this.save(IS_WEB_MODE, gameConfig);
 			}
 
-			//	console.log("Loading config from localStorage", localStorage.getItem("config"));
 			let configData = JSON.parse(localStorage.getItem("config")!);
 			gameConfig = this.fromJSON(localStorage.getItem("config")!);
 
@@ -149,9 +156,8 @@ export class GameConfig {
 				baseDir: BaseDirectory.Resource,
 			});
 			if (!configExists) {
-				let gameConfig = GameConfig.default();
+				let gameConfig = await GameConfig.default();
 				let locale = Intl.DateTimeFormat().resolvedOptions().locale;
-				console.log(locale);
 				if (locale === "ja-JP") {
 					gameConfig.language = "ja";
 				} else {

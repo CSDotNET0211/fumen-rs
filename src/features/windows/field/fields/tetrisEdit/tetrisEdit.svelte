@@ -31,6 +31,7 @@
   let isLeftClicking = false;
   let erase_mode = false;
   let pointerIsDown = false;
+  let isDragOver = false;
 
   let editBoard: Tetromino[];
   let updatedCoordinates: { [key: number]: Tetromino };
@@ -83,7 +84,7 @@
     document.addEventListener("onUpdateFieldNode", handleFieldUpdate);
 
     document.addEventListener("applyfield", handleApplyFieldEvent);
-    document.addEventListener("onReset", handleFieldUpdate);
+    document.addEventListener("databaseLoaded", handleFieldUpdate);
     document.addEventListener("onapplybot", handleApplyBot);
     document.addEventListener("onclearbot", handleClearBot);
     document.addEventListener("requestbotfield", requestBotField);
@@ -99,12 +100,21 @@
       cell.on("pointerup", handlePointerUp);
       cell.on("pointerupoutside", handlePointerUpOutside);
     }
+
+    // ファイルドロップイベントリスナーを追加
+    const tetrisBoardElement = document.querySelector(
+      ".tetris-board-container"
+    );
+    if (tetrisBoardElement) {
+      tetrisBoardElement.addEventListener("dragover", handleDragOver);
+      tetrisBoardElement.addEventListener("dragleave", handleDragLeave);
+      tetrisBoardElement.addEventListener("drop", handleFileDrop);
+    }
   }
 
   function handleApplyBot(event: Event) {
     const payload = (event as CustomEvent).detail;
 
-    console.log("handle apply bot");
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: payload.board, ghosts: payload.ghosts },
@@ -113,7 +123,7 @@
   }
 
   function requestBotField() {
-    const env = get(currentFieldNode);
+    const env = currentFieldNode.get();
     if (env == null) return;
 
     document.dispatchEvent(
@@ -128,14 +138,43 @@
     Object.assign(instance, payload);
 
     if (payload != null) {
-      currentFieldNode.setValue(instance);
+      currentFieldNode.set(instance);
     }
   }
 
   function handleFieldUpdate(event: Event) {
+    // if ((event as CustomEvent)?.detail?.id != get(currentFieldIndex)) return;
+
     let env = (event as CustomEvent)?.detail?.data;
     if (!env) {
-      env = get(currentFieldNode);
+      env = currentFieldNode.get();
+    }
+
+    if (env == null) return;
+
+    document.dispatchEvent(
+      new CustomEvent("onupdatefield", {
+        detail: { board: env.board },
+      })
+    );
+
+    document.dispatchEvent(
+      new CustomEvent("onupdatehold", {
+        detail: env.hold,
+      })
+    );
+
+    document.dispatchEvent(
+      new CustomEvent("onupdatenext", {
+        detail: env.next,
+      })
+    );
+  }
+
+  function onDatabaseLoaded() {
+    let env = (event as CustomEvent)?.detail?.data;
+    if (!env) {
+      env = currentFieldNode.get();
     }
 
     if (env == null) return;
@@ -161,13 +200,13 @@
 
   function handlePointerDown(event: FederatedPointerEvent) {
     //  suppressFieldUpdateNotification.set(true);
-    editBoard = [...get(currentFieldNode)!.board];
+    editBoard = [...currentFieldNode.get()!.board];
 
     if (event.button === 0) {
       pointerIsDown = true;
 
       const pos = (event.target as CellSprite).pos;
-      erase_mode = get(currentFieldNode)!.board[pos] !== Tetromino.Empty;
+      erase_mode = currentFieldNode.get()!.board[pos] !== Tetromino.Empty;
 
       if (get(selectedMino) == 8) {
         specialBlocks = [];
@@ -201,7 +240,7 @@
   function handleSpecialBlockPointerEnter(pos: number) {
     if (
       !erase_mode &&
-      get(currentFieldNode)!.board[pos] === Tetromino.Empty &&
+      currentFieldNode.get()!.board[pos] === Tetromino.Empty &&
       !specialBlocks!.includes(pos) &&
       specialBlocks!.length < 4
     ) {
@@ -221,7 +260,7 @@
     for (const block of specialBlocks!) {
       overrideBoard[block] = 8;
     }
-    const board = get(currentFieldNode)!.board;
+    const board = currentFieldNode.get()!.board;
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board, override: overrideBoard },
@@ -269,7 +308,7 @@
       return;
     }
 
-    editBoard = [...get(currentFieldNode)!.board];
+    editBoard = [...currentFieldNode.get()!.board];
 
     for (const block of specialBlocks!) {
       editBoard[block] = tetromino;
@@ -281,7 +320,7 @@
       })
     );
 
-    let cloned = get(currentFieldNode)!.clone();
+    let cloned = currentFieldNode.get()!.clone();
     cloned.board = [...editBoard];
     history.update((history: History) => {
       history.add($t("common.history-field"), cloned, Tetromino[tetromino]);
@@ -304,20 +343,25 @@
       specialBlocks === null &&
       pointerIsDown
     ) {
-      history.update((history: History) => {
-        let count = countBoardDiff(editBoard, get(currentFieldNode)!.board);
-        if (count == 0) return history;
+      const diff = countBoardDiff(editBoard, currentFieldNode.get()!.board);
+      if (diff == 0) return history;
 
+      currentFieldNode.update((env) => {
+        if (env) env.board = [...editBoard];
+        return env;
+      });
+
+      history.update((history: History) => {
         let content: String;
         if (erase_mode) {
-          content = `<span style="color: red;">-${count}</span>`;
+          content = `<span style="color: red;">-${diff}</span>`;
         } else {
-          content = `${Tetromino[get(selectedMino)]}<span style="color: green;"> +${count}</span>`;
+          content = `${Tetromino[get(selectedMino)]}<span style="color: green;"> +${diff}</span>`;
         }
 
         history.add(
           $t("common.history-field"),
-          get(currentFieldNode)!.clone(),
+          currentFieldNode.get()!.clone(),
           content
         );
         return history;
@@ -325,12 +369,66 @@
     }
 
     pointerIsDown = false;
+  }
 
-    currentFieldNode.update((env) => {
-      if (env) env.board = [...editBoard];
-      return env;
-    });
-    //editBoard = [];
+  function handleFileDrop(event: Event) {
+    event.preventDefault();
+    isDragOver = false;
+
+    const files = (event as DragEvent).dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+
+    // ファイルタイプをチェック
+    if (file.type === "application/json" || file.name.endsWith(".json")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          const data = JSON.parse(content);
+
+          // ファイルデータを処理するカスタムイベントを発火
+          document.dispatchEvent(
+            new CustomEvent("onFileDropped", {
+              detail: { file, data, type: "json" },
+            })
+          );
+        } catch (error) {
+          console.error("JSON parse error:", error);
+        }
+      };
+      reader.readAsText(file);
+    } else if (file.name.endsWith(".fumen")) {
+      // fumenファイルの場合
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        document.dispatchEvent(
+          new CustomEvent("onFileDropped", {
+            detail: { file, data: content, type: "fumen" },
+          })
+        );
+      };
+      reader.readAsText(file);
+    } else {
+      // その他のファイル
+      document.dispatchEvent(
+        new CustomEvent("onFileDropped", {
+          detail: { file, type: "unknown" },
+        })
+      );
+    }
+  }
+
+  function handleDragOver(event: Event) {
+    event.preventDefault();
+    isDragOver = true;
+  }
+
+  function handleDragLeave(event: Event) {
+    event.preventDefault();
+    isDragOver = false;
   }
 
   onMount(async () => {
@@ -338,7 +436,7 @@
     await setupEventListeners();
 
     autoFillQueue.set(false);
-    const env = get(currentFieldNode);
+    const env = currentFieldNode.get();
     if (env == null) return;
 
     document.dispatchEvent(
@@ -364,7 +462,6 @@
   });
 
   onDestroy(() => {
-    console.log("detroy");
     unmount();
     unlistenAutoFillQueue();
     document.removeEventListener("applyfield", handleApplyFieldEvent);
@@ -372,10 +469,21 @@
     document.removeEventListener("onapplybot", handleApplyBot);
     document.removeEventListener("onclearbot", handleClearBot);
     document.removeEventListener("requestbotfield", requestBotField);
+    document.removeEventListener("databaseLoaded", handleFieldUpdate);
 
     window.removeEventListener("mousedown", handleMouseDown);
     window.removeEventListener("mouseup", handleMouseUp);
     window.removeEventListener("keydown", handleKeyDown);
+
+    // ファイルドロップイベントリスナーを削除
+    const tetrisBoardElement = document.querySelector(
+      ".tetris-board-container"
+    );
+    if (tetrisBoardElement) {
+      tetrisBoardElement.removeEventListener("dragover", handleDragOver);
+      tetrisBoardElement.removeEventListener("dragleave", handleDragLeave);
+      tetrisBoardElement.removeEventListener("drop", handleFileDrop);
+    }
   });
 
   function handleKeyDown(this: Window, ev: KeyboardEvent) {
@@ -399,13 +507,40 @@
   function handleClearBot(): void {
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
-        detail: { board: get(currentFieldNode)!.board },
+        detail: { board: currentFieldNode.get()!.board },
       })
     );
   }
 </script>
 
-<TetrisBoard />
+<div class="tetris-board-container" class:drag-over={isDragOver}>
+  <TetrisBoard />
+</div>
 
 <style>
+  .tetris-board-container {
+    width: 100%;
+    height: 100%;
+    transition: all 0.2s ease;
+  }
+
+  .tetris-board-container.drag-over {
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 2px dashed #007bff;
+    border-radius: 4px;
+  }
+
+  .tetris-board-container.drag-over::after {
+    content: "ファイルをドロップしてください";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1000;
+  }
 </style>

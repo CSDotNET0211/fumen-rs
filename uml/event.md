@@ -24,7 +24,8 @@
 
 | event      | 説明                       |
 |------------|----------------------------|
-| onupdatefield       | 盤面canvas更新           |
+| onupdatefield       | 盤面canvas更新     |
+| onTetrisBoardMove   | 盤面上のマウス移動 |
 
 </details>
 
@@ -43,7 +44,7 @@
 | event      | 説明                       |
 |------------|----------------------------|
 | applyfield    | detailの盤面を適用させる |
-| onReset	| fumen.newが実行された |
+| onReset	| fumen.newが実行された |削除
 | onWindowTransitionEnd | Windowトランジション終了イベント |
 </details>
 

@@ -31,15 +31,15 @@
   function updateInputValue(type: OverlayFieldType) {
     //holdかnext片方を開いた状態からもう一方を開くとonmountが呼ばれないため
     if (type === OverlayFieldType.TetrominoSelectHold) {
-      let val = convertFromTetromino(get(currentFieldNode)!.hold);
+      let val = convertFromTetromino(currentFieldNode.get()!.hold);
       input_value.set(val);
 
       const inputElement = document.getElementById("tetromino-input");
       inputElement?.focus();
     } else if (type === OverlayFieldType.TetrominoSelectNext) {
-      let val = get(currentFieldNode)!.next.map((item) =>
-        convertFromTetromino(item)
-      );
+      let val = currentFieldNode
+        .get()!
+        .next.map((item) => convertFromTetromino(item));
 
       input_value.set(val.join(""));
 
@@ -87,7 +87,7 @@
       history.update((history: History) => {
         history.add(
           "Hold",
-          get(currentFieldNode)!.clone(),
+          currentFieldNode.get()!.clone(),
           input.toLowerCase()
         );
         return history;
@@ -109,7 +109,7 @@
       history.update((history: History) => {
         history.add(
           "Next",
-          get(currentFieldNode)!.clone(),
+          currentFieldNode.get()!.clone(),
           input.toLowerCase()
         );
         return history;

@@ -38,9 +38,20 @@
   const maxScale = 3;
 
   // ノード管理
-  //let fieldNodes: Map<number, FieldCanvasNode> = new Map();
-  //let textNodes: Map<number, TextCanvasNode> = new Map();
   let canvasNodes: Map<number, CanvasNode> = new Map();
+
+  // Factory funct	ion to create canvas nodes from database nodes
+  function createCanvasNode(databaseNode: any): CanvasNode {
+    if (databaseNode instanceof FieldDatabaseNode) {
+      return new FieldCanvasNode(databaseNode.id!);
+    } else if (databaseNode instanceof TextDatabaseNode) {
+      return new TextCanvasNode(databaseNode.id!);
+    } else {
+      throw new Error(
+        `Unknown database node type: ${databaseNode.constructor.name}`
+      );
+    }
+  }
 
   // canvas-innerのサイズ
 
@@ -168,9 +179,7 @@
   }
 
   onMount(async () => {
-    registerFieldNodeEventHandlers();
-    registerTextNodeEventHandlers();
-    registerMouseEventHandlers();
+    currentFieldIndex.set(-1);
 
     //サムネの更新が必要な場合は更新
     await updateAllThumbnailsDatabase();
@@ -194,6 +203,10 @@
     // After loading nodes, attach context menu
     // textNodes.forEach(attachContextMenuToNode);
     // fieldNodes.forEach(attachContextMenuToNode);
+
+    registerFieldNodeEventHandlers();
+    registerTextNodeEventHandlers();
+    registerMouseEventHandlers();
   });
 
   onDestroy(() => {
@@ -212,17 +225,17 @@
 
     const canvasNode = canvasNodes.get(databaseNode.id!);
 
-    canvasNode?.render(databaseNode);
+    canvasNode!.render(databaseNode);
   }
 
   function onCreateFieldNode(event: Event) {
     const customEvent = event as CustomEvent;
     const databaseNode = customEvent.detail as FieldDatabaseNode;
-    const canvasNode = canvasNodes.get(databaseNode.id!);
+    const canvasNode = createCanvasNode(databaseNode);
 
-    canvasNode?.render(databaseNode);
-    canvasNodes.set(databaseNode.id!, canvasNode!);
-    canvasInner.appendChild(canvasNode!.element!);
+    canvasNode.render(databaseNode);
+    canvasNodes.set(databaseNode.id!, canvasNode);
+    canvasInner.appendChild(canvasNode.element!);
   }
 
   function onDeleteFieldNode(event: Event) {
@@ -247,8 +260,7 @@
   function onCreateTextNode(event: Event) {
     const customEvent = event as CustomEvent;
     const databaseNode = customEvent.detail as TextDatabaseNode;
-    console.log(customEvent.detail);
-    const canvasNode = new TextCanvasNode(databaseNode.id!);
+    const canvasNode = createCanvasNode(databaseNode);
 
     canvasNode.render(databaseNode);
     canvasInner.appendChild(canvasNode.element!);
@@ -272,27 +284,27 @@
     canvasNodes.clear();
 
     const nodes = getAllNodesDatabase();
-    console.log(nodes);
-    console.log("refreshAllNodes", nodes);
 
     nodes.forEach((node) => {
       const dataBaseNode = getNodeDatabase(node.id!);
-      console.log(dataBaseNode);
 
-      let canvasNode: CanvasNode;
-
-      if (node.type === "field") {
-        canvasNode = new FieldCanvasNode(node.id!);
-      } else if (node.type === "text") {
-        canvasNode = new TextCanvasNode(node.id!);
-      } else {
-        console.warn(`Unknown node type: ${node.type}`);
+      if (!dataBaseNode) {
+        console.warn(`Database node not found for id: ${node.id}`);
         return;
       }
 
-      canvasNode.render(dataBaseNode!);
-      canvasInner.appendChild(canvasNode.element!);
-      canvasNodes.set(canvasNode.id, canvasNode);
+      try {
+        const canvasNode = createCanvasNode(dataBaseNode);
+        canvasNode.render(dataBaseNode);
+        canvasInner.appendChild(canvasNode.element!);
+        canvasNodes.set(canvasNode.id, canvasNode);
+      } catch (error) {
+        console.error(
+          `Failed to create canvas node for database node:`,
+          dataBaseNode,
+          error
+        );
+      }
     });
   }
 
@@ -457,7 +469,7 @@
                 const x = clamp(canvasX, 0, CANVAS_WIDTH);
                 const y = clamp(canvasY, 0, CANVAS_HEIGHT);
 
-                await get(nodeUpdater)!.create(
+                const index = await get(nodeUpdater)!.create(
                   new FieldDatabaseNode(
                     undefined,
                     x,
@@ -466,6 +478,7 @@
                     new TetrisEnv()
                   )
                 );
+                updateThumbnailDatabase(index);
               },
             },
             {
@@ -535,7 +548,6 @@
   class="canvas-container"
   on:mousedown={onMouseDown}
   tabindex="0"
-  on:dblclick={handleContainerDblClick}
   on:contextmenu={handleContainerRightClick}
 >
   <div

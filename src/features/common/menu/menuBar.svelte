@@ -562,6 +562,8 @@
       subMenuItemElement.appendChild(newSubMenu);
     }
   }
+
+  //TODO: submenu自体はライブラリ化したい、またfor copyのやつはglobal cssで回避
 </script>
 
 <!-- svelte-ignore a11y_mouse_events_have_key_events -->
@@ -578,7 +580,6 @@
   style="display: none;pointer-events: all;"
 ></div>
 
-<!-- submenuの中に入れる要素のテンプレート -->
 <div id="separator" class="separator" style="display: none;"></div>
 <div id="submenu-item" class="submenu-item" style="display: none;">
   <span></span>
@@ -591,7 +592,6 @@
   <span class="shortcut"></span>
   <span class="arrow"></span>
 </div>
-<!-- end -->
 
 <div class="active" style="display: none;"></div>
 
@@ -621,6 +621,19 @@
     <button class="open-desktop-button" onclick={openInDesktop}>
       <!--{translations("common.menu-open-in-desktop")}-->
       Open in Desktop
+    </button>
+
+    <button
+      class="play-control-button"
+      onclick={() => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        } else {
+          document.documentElement.requestFullscreen();
+        }
+      }}
+    >
+      <img src="fullscreen.svg" alt="Fullscreen" class="play-control-icon" />
     </button>
   {/if}
 

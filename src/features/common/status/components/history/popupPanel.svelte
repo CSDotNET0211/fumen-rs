@@ -51,7 +51,7 @@
     history.update((history: History) => {
       {
         history.historyIndex = index;
-        currentFieldNode.setValue(history.current.entry.clone());
+        currentFieldNode.set(history.current.entry.clone());
       }
 
       return history;

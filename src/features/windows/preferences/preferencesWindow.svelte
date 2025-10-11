@@ -9,13 +9,25 @@
   import { gameConfig } from "../../../app/stores/config";
   import { locale, t } from "../../../translations/translations";
   import { GameConfig } from "../../../app/gameConfig";
-  import { currentWindow, WindowType } from "../../../app/stores/window";
+  import {
+    currentWindow,
+    DEFAULT_WINDOW_HEIGHT,
+    DEFAULT_WINDOW_WIDTH,
+    WindowType,
+  } from "../../../app/stores/window";
   import Panel from "./panel.svelte";
   import { SortableList } from "@jhubbardsf/svelte-sortablejs";
 
   import { flip } from "svelte/animate";
   import { dndzone } from "svelte-dnd-action";
   import List from "./list.svelte";
+  import { open } from "@tauri-apps/plugin-dialog";
+  import {
+    preprocessTrainingData,
+    learnMinoModel,
+  } from "../../../core/utils/imageRecognition";
+  import { writeTextFile } from "@tauri-apps/plugin-fs";
+
   const flipDurationMs = 50;
 
   let editingKey = writable<string | null>(null);
@@ -169,8 +181,8 @@
     currentWindow.set(WindowType.Field);
   }
 
-  function resetGameConfig() {
-    gameConfig.set(GameConfig.default());
+  async function resetGameConfig() {
+    gameConfig.set(await GameConfig.default());
     alert($t("common.preferences-reset-success"));
   }
 
@@ -191,8 +203,8 @@
     const factor = await win.scaleFactor();
     invoke("set_window_size", {
       window: win,
-      width: Math.round(532 * factor),
-      height: Math.round(770 * factor),
+      width: Math.round(DEFAULT_WINDOW_WIDTH * factor),
+      height: Math.round(DEFAULT_WINDOW_HEIGHT * factor),
     });
   }
 
@@ -228,6 +240,109 @@
 
   let sliderElements: HTMLInputElement[] = [];
   let sliderListeners: (() => void)[] = [];
+  async function addModel() {
+    try {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".json";
+      input.multiple = false;
+
+      input.onchange = async (event) => {
+        const file = (event.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+
+        try {
+          const text = await file.text();
+          const modelData = JSON.parse(text);
+
+          // モデル名をファイル名から取得（拡張子を除く）
+          const modelName = file.name.replace(".json", "");
+
+          gameConfig.update((config) => {
+            if (config) {
+              if (!config.imageRecognitionModels) {
+                config.imageRecognitionModels = {};
+              }
+
+              if (!config.imageRecognitionModels[modelName]) {
+                config.imageRecognitionModels[modelName] = modelData;
+                console.log("Model added:", modelName, modelData);
+              } else {
+                alert("同じ名前のモデルが既に存在します");
+              }
+            }
+            return config;
+          });
+        } catch (error) {
+          console.error("Failed to parse JSON:", error);
+          alert("JSONファイルの読み込みに失敗しました");
+        }
+      };
+
+      input.click();
+    } catch (error) {
+      console.error("Failed to add model:", error);
+      alert("モデルの追加に失敗しました");
+    }
+  }
+
+  function removeModel(modelName: string) {
+    gameConfig.update((config) => {
+      // console.log("Removing model:", config.imageRecognitionModels);
+      if (config && config.imageRecognitionModels) {
+        delete config.imageRecognitionModels[modelName];
+      }
+      return config;
+    });
+  }
+
+  function resetModels() {
+    //TODO: 削除じゃなくてリセットな
+    gameConfig.update((config) => {
+      if (config) {
+        config.imageRecognitionModels = {};
+      }
+      return config;
+    });
+  }
+
+  async function trainModel() {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: "学習用フォルダを選択してください",
+    });
+
+    // 学習用データを前処理して取得
+    const trainingData = await preprocessTrainingData(selected!);
+    if (!trainingData || trainingData.length === 0) {
+      alert("学習用データが見つかりませんでした。");
+      return;
+    }
+
+    console.log("Training data:", trainingData);
+
+    // モデルを学習
+    const model = learnMinoModel(trainingData);
+    console.log("Learned model:", model);
+    // モデルを保存
+    const parentDir = selected!.replace(/[^/\\]+$/, "");
+    const folderName = selected!.split(/[/\\]/).pop() || "model";
+    const modelPath = `${parentDir}${folderName}.json`;
+
+    try {
+      await writeTextFile(modelPath, JSON.stringify(model));
+      alert("モデルの学習と保存が完了しました。");
+    } catch (error) {
+      console.error("Failed to save model:", error);
+      alert("モデルの保存に失敗しました。");
+    }
+    // モデルを保存
+    // const saved = await saveMinoModel(model);
+    // if (saved) {
+    //   alert("モデルの学習と保存が完了しました。");
+    //  }
+  }
 </script>
 
 <div id="container">
@@ -429,6 +544,28 @@
       </button>
     </div>
   </Panel>
+  <Panel title="画像認識モデル" description="画像認識に使うモデルの管理">
+    <ul style="padding-left: 0;">
+      {#if $gameConfig?.imageRecognitionModels}
+        {#each Object.entries($gameConfig.imageRecognitionModels) as [modelName, modelData], i}
+          <li class="model-list-item">
+            <span>{modelName}</span>
+            <button
+              onclick={() => removeModel(modelName)}
+              style="background: none; border: none; padding: 0; cursor: pointer;"
+            >
+              <img src="/trashbin.svg" alt="削除" width="20" height="20" />
+            </button>
+          </li>
+        {/each}
+      {/if}
+    </ul>
+    <div style="margin-top: 10px;">
+      <button onclick={addModel}>モデル追加</button>
+      <button onclick={trainModel}>モデルを学習</button>
+      <button onclick={resetModels}>デフォルトに戻す</button>
+    </div>
+  </Panel>
   <div style="margin-bottom: 100px;"></div>
 </div>
 
@@ -611,5 +748,40 @@
   #component-container {
     display: flex;
     gap: 20px;
+  }
+
+  /* 画像認識モデルのゴミ箱アイコンボタンのスタイル */
+  ul > li > button[style*="background: none"] {
+    opacity: 0.5;
+    transition:
+      opacity 0.2s,
+      background 0.2s;
+    border-radius: 4px;
+  }
+  ul > li > button[style*="background: none"]:hover {
+    background: rgba(255, 0, 0, 0.15);
+    opacity: 1;
+  }
+  ul > li > button[style*="background: none"]:hover img {
+    filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.7));
+  }
+
+  /* 画像認識モデルリストのアイテムを縦中央揃え */
+  .model-list-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 32px;
+    padding: 2px 0;
+  }
+  .model-list-item span {
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 </style>

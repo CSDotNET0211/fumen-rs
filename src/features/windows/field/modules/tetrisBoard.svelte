@@ -125,6 +125,8 @@
       document.getElementById("canvas") as HTMLCanvasElement
     );
 
+    tetrisBoardApp.canvas.addEventListener("mousemove", handleMouseMove);
+
     await adjustCanvasSize();
     window.addEventListener("resize", adjustCanvasSize);
 
@@ -136,6 +138,14 @@
     }
   }
 
+  function handleMouseMove(event: MouseEvent) {
+    const { clientX, clientY } = event;
+    const customEvent = new CustomEvent("onTetrisBoardMove", {
+      detail: { clientX, clientY },
+    });
+    document.dispatchEvent(customEvent);
+  }
+
   function handleUpdateField(event: Event) {
     const detail = (event as CustomEvent).detail;
     const { board, ghosts, override } = detail;
@@ -144,6 +154,7 @@
 
   export async function unmount() {
     document.removeEventListener("onupdatefield", handleUpdateField);
+    tetrisBoardApp?.canvas.removeEventListener("mousemove", handleMouseMove);
     tetrisBoardSprites = [];
 
     tetrisBoardApp?.destroy();

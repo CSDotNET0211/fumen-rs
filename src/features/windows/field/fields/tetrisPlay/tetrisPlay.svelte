@@ -200,10 +200,10 @@
     gameConfigObj = get(gameConfig)!;
     current_frame = 0;
 
-    if (get(currentFieldNode) == null) {
+    if (currentFieldNode.get() == null) {
       throw new Error("Current field node is null");
     }
-    originalEnv = get(currentFieldNode)!.clone();
+    originalEnv = currentFieldNode.get()!.clone();
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -292,7 +292,7 @@
       clone.next.unshift(clone.current.type);
     }
 
-    currentFieldNode.setValue(clone);
+    currentFieldNode.set(clone);
   }
 
   onDestroy(() => {
@@ -355,7 +355,7 @@
     } else if (originalEnv) {
       env = originalEnv.clone();
     } else {
-      env = get(currentFieldNode)!.clone();
+      env = currentFieldNode.get()!.clone();
     }
 
     tetrisConfigObj = new TetrisConfig(

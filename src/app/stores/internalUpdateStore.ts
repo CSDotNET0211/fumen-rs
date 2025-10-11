@@ -1,35 +1,50 @@
-import { writable, type Writable } from 'svelte/store';
-
-interface InternalUpdateStore<T> {
-	subscribe: Writable<T>['subscribe'];
-	setValue: (value: T) => void;
+interface UpdateStore<T> {
+	subscribe: (callback: (value: T) => void) => void;
+	set: (value: T) => void;
 	setQuietly: (value: T) => void;
-	update: (callback: (value: T) => T) => void; // 👈 ここにupdateを追加
+	update: (callback: (value: T) => T) => void;
 	updateQuietly: (callback: (value: T) => T) => void;
-	getValue: () => T;
+	get: () => T;
 }
 
-export function internalUpdateStore<T>(initialValue: T): InternalUpdateStore<T> {
+
+export const createUpdateStore = <T>(initialValue: T): UpdateStore<T> => {
 	let internalValue = initialValue;
-	const { subscribe, set, update } = writable(internalValue); // 👈 内部でupdateも受け取る
+	const subscribers: ((value: T) => void)[] = [];
+
+	const notifySubscribers = () => {
+		subscribers.forEach(callback => callback(internalValue));
+	};
 
 	return {
-		subscribe,
-		setValue: (value) => {
+		subscribe: (callback) => {
+			subscribers.push(callback);
+			callback(internalValue);
+
+			// Return unsubscribe function
+			return () => {
+				const index = subscribers.indexOf(callback);
+				if (index > -1) {
+					subscribers.splice(index, 1);
+				}
+			};
+		},
+		set: (value) => {
 			internalValue = value;
-			set(value);
+			notifySubscribers();
 		},
 		setQuietly: (value) => {
 			internalValue = value;
 		},
-		// ここで従来のupdateメソッドを公開
 		update: (callback) => {
 			internalValue = callback(internalValue);
-			update(callback); // 内部のwritableストアのupdateを呼び出す
+			notifySubscribers();
 		},
 		updateQuietly: (callback) => {
 			internalValue = callback(internalValue);
 		},
-		getValue: () => internalValue,
+		get: () => {
+			return internalValue;
+		},
 	};
-}
+};

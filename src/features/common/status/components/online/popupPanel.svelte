@@ -51,20 +51,20 @@
     </button>
   {:else if $players.size === 0}
     <div class="connected-info">
-      <div style="margin-bottom: 5px;">
+      <!-- <div style="margin-bottom: 5px;">
         Server: {get(gameConfig)?.socketAddress}
-      </div>
+      </div> -->
       <input
         type="text"
         placeholder="Enter Roomname"
-        class="room-input"
+        class="room-input input"
         bind:value={roomName}
         onkeydown={(e) => e.stopPropagation()}
       />
       <input
         type="text"
         placeholder="Enter Username"
-        class="username-input"
+        class="username-input input"
         bind:value={userName}
         onkeydown={(e) => e.stopPropagation()}
       />
@@ -143,16 +143,22 @@
     width: calc(100% - 20px);
     padding: 8px;
     margin-bottom: 3px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
   }
 
   .username-input {
     width: calc(100% - 20px);
     padding: 8px;
     margin-bottom: 6px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+  }
+
+  .input {
+    background-color: #2f2f2f;
+    border: 1px solid #98999a;
+    color: white;
+  }
+
+  .input::placeholder {
+    color: #bebfc0;
   }
 
   .join-button {
@@ -180,8 +186,8 @@
   .room-header {
     display: flex;
     flex-direction: column;
-    align-items: center;
     margin-bottom: 10px;
+    width: 100%;
   }
 
   .room-label {
@@ -192,19 +198,20 @@
   .room-name {
     font-size: 1.5em;
     font-weight: bold;
-    color: #333;
+    color: #ffffff;
+    text-align: center;
   }
 
   .players-header {
     display: flex;
-    align-items: center;
     gap: 8px;
     margin-bottom: 8px;
+    width: 100%;
   }
 
   .players-label {
-    font-size: 1em;
-    color: #555;
+    font-size: 0.9em;
+    color: #888;
   }
 
   .players-count {
@@ -219,20 +226,22 @@
   .players-list {
     list-style: none;
     padding: 0;
-    margin: 0 0 12px 0;
+    margin: 0 0 2px 0;
     width: 100%;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 6px;
   }
 
   .player-card {
-    background: #f5f5f5;
-    border-radius: 6px;
-    padding: 6px 12px;
+    background-color: #2f2f2f;
     text-align: center;
-    font-size: 1.1em;
-    color: #222;
+    font-size: 1em;
+    border: 1px solid rgb(98, 98, 98);
+    border-radius: 10px;
+    padding: 0px 10px;
+    color: white;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   }
 
@@ -261,7 +270,7 @@
     width: 100%;
     padding: 8px;
     background-color: #6c757d;
-    color: #d6f6f6;
+    color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;

@@ -28,7 +28,7 @@
 
     document.addEventListener("onupdatehold", handleUpdateHold);
 
-    let hold = get(currentFieldNode)?.hold;
+    let hold = currentFieldNode.get()?.hold;
     updateHold(hold ?? Tetromino.Empty);
   });
 

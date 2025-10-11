@@ -12,6 +12,8 @@
     PanelType,
   } from "./field";
   import { gameConfig } from "../../../app/stores/config";
+  import Cursor from "../../common/cursor/cursor.svelte";
+  import { cursors } from "../../../services/online";
 
   let rightComponents: Writable<any[]> = writable([]);
   let leftComponents: Writable<any[]> = writable([]);
@@ -71,6 +73,16 @@
     {/each}
   </div>
 </div>
+
+{#each Object.values($cursors) as cursor}
+  <Cursor
+    name={cursor.name}
+    x={cursor.x}
+    y={cursor.y}
+    color={cursor.color}
+    location={cursor.location}
+  />
+{/each}
 
 <style>
   .side_panel {

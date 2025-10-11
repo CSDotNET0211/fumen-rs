@@ -1,12 +1,13 @@
 import { get } from "svelte/store";
 import { FieldDatabaseNode } from "../../../../core/nodes/DatabaseNode/fieldDatabaseNode";
 import { TextDatabaseNode } from "../../../../core/nodes/DatabaseNode/textDatabaseNode";
-import { getAllFieldNodesDatabase, getNodeDatabase } from "../../../../core/nodes/db";
+import { deleteNodeDatabase, getAllFieldNodesDatabase, getNodeDatabase } from "../../../../core/nodes/db";
 import { nodeUpdater } from "../../../../core/nodes/NodeUpdater/nodeUpdater";
 import { CANVAS_HEIGHT, CANVAS_WIDTH, GRID_SNAP_SIZE, } from "../const";
 import { CanvasNode } from "./canvasNode";
 import { clamp } from "../util";
 import type { DatabaseNode } from "../../../../core/nodes/DatabaseNode/databaseNode";
+import { open } from "../contextMenu.svelte";
 
 export class TextCanvasNode extends CanvasNode {
 	isDragging: boolean;
@@ -91,6 +92,134 @@ export class TextCanvasNode extends CanvasNode {
 		};
 
 		this.element = div;
+	}
+
+	dblClick(e: MouseEvent): void {
+		if (!this.element) return;
+		this.handleTextNodeEdit(this);
+		e.stopPropagation();
+	}
+
+	handleTextNodeEdit(textNode: TextCanvasNode) {
+		if (!textNode.element) return;
+		textNode.element.contentEditable = "true";
+		textNode.element.style.userSelect = "text"; // 編集モードで選択可
+		textNode.element.focus();
+		//textを全選択
+		const range = document.createRange();
+		const selection = window.getSelection();
+		range.selectNodeContents(textNode.element);
+		range.collapse(false); // false means collapse to end
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+
+		const oldText = textNode.element.textContent || "";
+
+		function cleanup() {
+			if (textNode.element && textNode.element.parentNode) {
+				textNode.element.parentNode.removeChild(textNode.element);
+			}
+			// nodes配列からも削除
+			deleteNodeDatabase(getNodeDatabase(textNode.id)!);
+			//TextNode.deleteDB(textNode.id);
+		}
+
+		const confirm = () => {
+			if (!textNode.element) return;
+			const newText = (textNode.element.textContent || "").trim();
+			if (!newText) {
+				cleanup();
+				return;
+			}
+
+			//this.render(new TextDatabaseNode(textNode.id, undefined, undefined, newText, undefined, undefined, undefined));
+
+			//	textNode.text = newText;
+			textNode.element.contentEditable = "false";
+			textNode.element.style.userSelect = "none";
+			textNode.element.blur();
+			textNode.element.className = "canvas-text confirmed";
+
+			//console.log("confirmed text:", textNode.text);
+			get(nodeUpdater)!.update(new TextDatabaseNode(textNode.id, undefined, undefined, newText, undefined, undefined, undefined));
+			//TextNode.updateDB(textNode.id, textNode.x, textNode.y, textNode.size, textNode.text, textNode.color, textNode.backgroundColor);
+		}
+		const cancel = () => {
+			if (!textNode.element) return;
+			if (oldText.trim()) {
+				textNode.element.textContent = oldText;
+				textNode.element.contentEditable = "false";
+				textNode.element.style.userSelect = "none";
+				textNode.element.className = "canvas-text confirmed";
+			} else {
+				cleanup();
+			}
+		}
+
+		textNode.element.addEventListener("keydown", function handler(ev) {
+			if (ev.key === "Escape") {
+				ev.preventDefault();
+				cancel();
+				textNode.element?.removeEventListener("keydown", handler);
+			} else if (ev.key === "Enter" && !ev.shiftKey) {
+				ev.preventDefault();
+				//confirm();
+				textNode.element?.blur();
+				//textNode.element?.removeEventListener("keydown", handler);
+			}
+		});
+
+		textNode.element.addEventListener("blur", function handler() {
+			console.log("blur");
+			confirm();
+			textNode.element?.removeEventListener("blur", handler);
+		});
+
+
+	}
+
+	rightClick(e: MouseEvent): void {
+		open({
+			x: e.clientX,
+			y: e.clientY,
+			items: [
+				{
+					name: "複製",
+					action: async () => {
+						const node = getNodeDatabase(this.id);
+						node!.id = undefined;
+						const newIndex = await get(nodeUpdater)?.create(node!)!;
+						const newNode = (getNodeDatabase(newIndex) as TextDatabaseNode)!;
+						get(nodeUpdater)?.update(new TextDatabaseNode(newIndex, newNode.x! + 50, newNode.y! + 50, undefined, undefined, undefined, undefined));
+					}
+				},
+				/*
+				{
+					name: "接続削除 (From)",
+					action: () => {
+						// Delete connections where this node is the source
+						if (db) {
+							db.run(`DELETE FROM connections WHERE from_id = ?;`, [this.id]);
+						}
+					}
+				},
+				{
+					name: "接続削除 (To)",
+					action: () => {
+						// Delete connections where this node is the target
+						if (db) {
+							db.run(`DELETE FROM connections WHERE to_id = ?;`, [this.id]);
+						}
+					}
+				},*/
+				{
+					name: "削除",
+					action: () => {
+						get(nodeUpdater)?.delete(getNodeDatabase(this.id)!);
+					}
+				}
+			]
+		});
 	}
 
 	private _onMouseDown(e: MouseEvent) {

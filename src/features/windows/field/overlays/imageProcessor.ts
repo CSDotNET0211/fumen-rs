@@ -38,7 +38,7 @@ export class ImageProcessor {
 		};
 	}
 
-	static convertToHsv(r: number, g: number, b: number) {
+	static rbgToHsv(r: number, g: number, b: number) {
 		r /= 255, g /= 255, b /= 255;
 		const max = Math.max(r, g, b), min = Math.min(r, g, b);
 		let h, s, v = max;
@@ -49,21 +49,22 @@ export class ImageProcessor {
 		if (max === min) {
 			h = 0;
 		} else {
+			// hをsinで計算
 			switch (max) {
 				case r:
-					h = (g - b) / d + (g < b ? 6 : 0);
+					h = Math.sin((g - b) / d + (g < b ? 6 : 0));
 					break;
 				case g:
-					h = (b - r) / d + 2;
+					h = Math.sin((b - r) / d + 2);
 					break;
 				case b:
-					h = (r - g) / d + 4;
+					h = Math.sin((r - g) / d + 4);
 					break;
 			}
 			h! /= 6;
 		}
 
-		return { h: h! * 360, s: s * 100, v: v * 100 };
+		return { h: h!, s: s * 100, v: v * 100 };
 	}
 
 	static getMinoFromHsv(h: number, s: number, v: number) {
@@ -87,7 +88,7 @@ export class ImageProcessor {
 		for (const chunk of chunks) {
 			const chunkData = this.getImageDataFromChunk(imageData, chunk);
 			const { r, g, b } = this.getImageAvgColor(chunkData);
-			const { h, s, v } = this.convertToHsv(r, g, b);
+			const { h, s, v } = this.rbgToHsv(r, g, b);
 			const mino = this.getMinoFromHsv(h, s, v);
 			field.push(mino);
 		}
@@ -154,6 +155,29 @@ export class ImageProcessor {
 		}
 
 		return canvas.toDataURL("image/png");
+	}
+
+	static predict(
+		hsv: { h: number; s: number; v: number },
+		ranges: {
+			[key: string]: {
+				h: [number, number],
+				s?: [number, number],
+				v?: [number, number]
+			}
+		}
+	): string | null {
+		const { h, s, v } = hsv;
+		for (const key in ranges) {
+			const range = ranges[key];
+			const hInRange = range.h[0] <= h && h <= range.h[1];
+			const sInRange = range.s ? (range.s[0] <= s && s <= range.s[1]) : true;
+			const vInRange = range.v ? (range.v[0] <= v && v <= range.v[1]) : true;
+			if (hInRange && sInRange && vInRange) {
+				return key;
+			}
+		}
+		return null;
 	}
 }
 

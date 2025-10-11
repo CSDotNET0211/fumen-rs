@@ -65,6 +65,7 @@ export class FieldDatabaseNode extends DatabaseNode {
 
 			const event = new CustomEvent("onUpdateFieldNode", { detail: this });
 			document.dispatchEvent(event);
+
 		}
 
 

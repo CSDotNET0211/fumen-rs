@@ -124,7 +124,7 @@
     history.update((history: History) => {
       history.add(
         $t("common.history-paste-fumen"),
-        get(currentFieldNode)!.clone(),
+        currentFieldNode.get()!.clone(),
         ""
       );
       return history;
