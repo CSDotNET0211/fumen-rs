@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as THREE from "three";
-  import { ImageProcessor } from "../../imageProcessor";
   import { RandomForestClassifier as RFClassifier } from "ml-random-forest";
   import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-  import { hsvToPosition, imageToChunks } from "../../utils/fumenImage";
+  import { hsvToPosition, imageToChunks } from "../../core/utils/fumenImage";
+  import { ImageProcessor } from "../../features/windows/field/overlays/imageProcessor";
 
   let container: HTMLDivElement;
   let chunkArray: { h: number; s: number; v: number; color: string }[] = [];
@@ -186,8 +186,6 @@
   }
 
   onMount(() => {
-    invoke("test");
-
     console.log("mounting visualizer");
     const width = document.body.clientWidth;
     const height = document.body.clientHeight;
@@ -329,7 +327,7 @@
         const avgR = totalR / pixelCount;
         const avgG = totalG / pixelCount;
         const avgB = totalB / pixelCount;
-        const { h, s, v } = ImageProcessor.convertToHsv(avgR, avgG, avgB);
+        const { h, s, v } = ImageProcessor.rbgToHsv(avgR, avgG, avgB);
         trainData.push({ h, s, v, label });
       }
     }

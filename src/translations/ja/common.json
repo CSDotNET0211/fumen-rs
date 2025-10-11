@@ -1,4 +1,5 @@
 {
+	"menu-panel-settings": "パネル設定を開く",
 	"menu-panel": "パネル",
 	"menu-panel-preset": "プリセット",
 	"menu-panel-panels": "パネル",
@@ -26,6 +27,8 @@
 	"menu-support-me-on-ko-fi": "Ko-fiで支援",
 	"menu-auto-fill-queue": "ネクストを自動補完",
 	"menu-auto-apply-field": "盤面を自動適用",
+	"menu-open-github": "GitHubのリポジトリを開く",
+	"menu-always-on-top": "常に手前に表示",
 	"dialog-all-files": "すべての形式",
 	"dialog-fumen-files": "譜面",
 	"dialog-image-files": "画像",

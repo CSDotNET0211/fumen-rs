@@ -1,0 +1,16 @@
+@startuml
+
+abstract class CanvasNode {
+  +element : Object?
+  +render()
+  +onDblClick()
+  +onRightClick()
+}
+
+class CanvasFieldNode
+class CanvasTextNode
+
+CanvasFieldNode --|> CanvasNode
+CanvasTextNode --|> CanvasNode
+
+@enduml

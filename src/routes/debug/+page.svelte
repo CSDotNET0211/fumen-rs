@@ -1,10 +1,10 @@
 <script lang="ts">
   import { Chart, registerables } from "chart.js";
   import { onDestroy, onMount } from "svelte";
-  import { ImageProcessor } from "../../imageProcessor";
   import { open } from "@tauri-apps/plugin-dialog";
   import { Rectangle } from "pixi.js";
   import { convertFileSrc } from "@tauri-apps/api/core";
+  import { ImageProcessor } from "../../features/windows/field/overlays/imageProcessor";
 
   Chart.register(...registerables);
 
@@ -115,7 +115,7 @@
           const avgB = totalB / pixelCount;
 
           // RGBからHSVに変換
-          const { h, s, v } = ImageProcessor.convertToHsv(avgR, avgG, avgB);
+          const { h, s, v } = ImageProcessor.rbgToHsv(avgR, avgG, avgB);
 
           // h, sを配列としてまとめて配列に追加
           hsPairs.push([h, s]);
@@ -203,7 +203,7 @@
           const r = chunkImageData.data[i];
           const g = chunkImageData.data[i + 1];
           const b = chunkImageData.data[i + 2];
-          const { h, s, v } = ImageProcessor.convertToHsv(r, g, b);
+          const { h, s, v } = ImageProcessor.rbgToHsv(r, g, b);
           hueCounts[Math.floor(h)]++;
           saturationCounts[Math.floor(s)]++;
           valueCounts[Math.floor(v)]++;
@@ -329,7 +329,7 @@
         const r = chunkImageData.data[i];
         const g = chunkImageData.data[i + 1];
         const b = chunkImageData.data[i + 2];
-        const { h, s } = ImageProcessor.convertToHsv(r, g, b);
+        const { h, s } = ImageProcessor.rbgToHsv(r, g, b);
         hueCounts[Math.floor(h)]++;
         saturationCounts[Math.floor(s)]++;
       }

@@ -1,7 +1,12 @@
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Transformed by: SVG Repo Mixer Tools -->
-<svg fill="#000000" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="127px" height="127px" viewBox="-10.66 -10.66 287.81 287.81" xml:space="preserve" stroke="#000000" stroke-width="0.00266495" transform="rotate(270)">
-<g id="SVGRepo_bgCarrier" stroke-width="0"/>
-<g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" stroke="#fffafa" stroke-width="15.9897"> <g> <g> <path d="M150.036,266.494c-0.264,0-0.517-0.006-0.792-0.018c-6.102-0.337-11.332-4.474-13.046-10.347l-26.067-89.027 l-95.203-18.867c-6.014-1.194-10.614-6.059-11.476-12.123c-0.858-6.062,2.201-12.016,7.65-14.832L242.143,1.617 C247.5-1.175,254.057-0.29,258.518,3.8c4.474,4.101,5.885,10.55,3.562,16.146l-98.743,237.655 C161.097,263.018,155.836,266.494,150.036,266.494z"/> </g> </g> </g>
-<g id="SVGRepo_iconCarrier"> <g> <g> <path d="M150.036,266.494c-0.264,0-0.517-0.006-0.792-0.018c-6.102-0.337-11.332-4.474-13.046-10.347l-26.067-89.027 l-95.203-18.867c-6.014-1.194-10.614-6.059-11.476-12.123c-0.858-6.062,2.201-12.016,7.65-14.832L242.143,1.617 C247.5-1.175,254.057-0.29,258.518,3.8c4.474,4.101,5.885,10.55,3.562,16.146l-98.743,237.655 C161.097,263.018,155.836,266.494,150.036,266.494z"/> </g> </g> </g>
-</svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Capa_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 127 127">
+  <!-- Generator: Adobe Illustrator 29.6.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 9)  -->
+  <g id="SVGRepo_tracerCarrier" display="none">
+    <path d="M70.91,122.3c-.12,0-.23,0-.35,0-2.69-.15-5-1.97-5.76-4.57l-11.5-39.28-42.01-8.33c-2.65-.53-4.68-2.67-5.06-5.35-.38-2.67.97-5.3,3.38-6.54L111.55,5.42c2.36-1.23,5.26-.84,7.23.96,1.97,1.81,2.6,4.66,1.57,7.12l-43.57,104.87c-.99,2.39-3.31,3.92-5.87,3.92Z" stroke="snow" stroke-linecap="round" stroke-linejoin="round" stroke-width="7.06"/>
+  </g>
+  <g id="SVGRepo_iconCarrier" display="none">
+    <path d="M70.91,122.3c-.12,0-.23,0-.35,0-2.69-.15-5-1.97-5.76-4.57l-11.5-39.28-42.01-8.33c-2.65-.53-4.68-2.67-5.06-5.35-.38-2.67.97-5.3,3.38-6.54L111.55,5.42c2.36-1.23,5.26-.84,7.23.96,1.97,1.81,2.6,4.66,1.57,7.12l-43.57,104.87c-.99,2.39-3.31,3.92-5.87,3.92Z" stroke="#000" stroke-miterlimit="1.77"/>
+  </g>
+  <path d="M-342-712" display="none" fill="#fff" stroke="#000" stroke-miterlimit="10"/>
+  <polyline points="5.88 7.52 64.68 122.18 79.62 75.06 123.47 57.45"/>
+</svg>

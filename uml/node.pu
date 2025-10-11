@@ -1,0 +1,72 @@
+@startuml a
+abstract class DatabaseNode {
+    - id: number
+    - type: string
+    {abstract} +updateNode(db: Database)
+    {abstract} +createNode(db: Database)
+    {abstract} +deleteNode(db: Database)
+}
+
+class FieldDatabaseNode {
+    - x: number
+    - y: number
+    - thumbnail: string
+    - data: TetrisEnv
+}
+
+class TextDatabaseNode {
+    - x: number
+    - y: number
+    - text: string
+    - size: number
+    - color: string
+    - backgroundColor: string
+}
+
+
+
+abstract class NodeUpdater {
+	+update()
+	+create()
+	+delete()
+}
+class LocalUpdater {
+}
+
+class RemoteUpdater{
+}
+
+class SocketIOUpdater {
+	+sendUpdate()
+	+receiveUpdate()
+}
+
+SocketIOUpdater <|-- RemoteUpdater
+OnNodeUpdated <|-- SocketIOUpdater
+
+
+Database <|-- OnNodeUpdated
+OnNodeUpdated <|-- LocalUpdater
+
+LocalUpdater <|-- NodeUpdater
+RemoteUpdater <|-- NodeUpdater
+
+
+ FieldDatabaseNode    <|-- DatabaseNode
+ TextDatabaseNode    <|-- DatabaseNode
+ 
+currentFieldNodeSubscriber <|-- TetrisEditとかの編集
+currentFieldNodeSubscriber <|-- TetrisPlayとかの編集
+
+NodeUpdater <|-- Canvasでの編集
+
+NodeUpdater <|-- currentFieldNodeSubscriber
+
+
+note right of NodeUpdater
+Local、Remoteともに通知される更新には
+必ずNodeUpdaterを経由する
+end note
+
+
+@enduml

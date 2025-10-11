@@ -1,0 +1,23 @@
+@startuml
+
+entity shortcuts {
+    * shortcut_id : TEXT [PK]
+    --
+    shortcut_name : TEXT [NOT NULL]
+}
+
+entity key_bindings {
+    * binding_id : INTEGER [PK, AUTOINCREMENT]
+    --
+    shortcut_id : TEXT [FK -> shortcuts.shortcut_id, NOT NULL]
+    base_key : TEXT [NOT NULL]
+    is_shift : BOOLEAN [NOT NULL, DEFAULT FALSE]
+    is_ctrl : BOOLEAN [NOT NULL, DEFAULT FALSE]
+    is_alt : BOOLEAN [NOT NULL, DEFAULT FALSE]
+    --
+    UNIQUE(base_key, is_shift, is_ctrl, is_alt)
+}
+
+shortcuts ||--o{ key_bindings : "shortcut_id"
+
+@enduml

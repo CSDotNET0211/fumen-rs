@@ -1,0 +1,887 @@
+//////import { TetrisEnv } from "tetris/src/tetris_env";
+import { currentFieldIndex } from "../../../app/stores/data";
+import { currentWindow, WindowType } from "../../../app/stores/window";
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./const";
+import type { Database } from "sql.js";
+import { get } from "svelte/store";
+import { SHA256 } from "crypto-js";
+import { getOffScreenCanvasImage } from "../field/modules/tetrisBoard.svelte";
+import initSqlJs from "sql.js";
+import { open } from "./contextMenu.svelte";
+import { selectedNodeId, } from './selectionStore';
+import { BaseDirectory, writeFile, } from "@tauri-apps/plugin-fs";
+
+
+
+export abstract class Node {
+	static readonly GRID_SNAP_SIZE = 10;
+	readonly id: number;
+	readonly type: string;
+	protected x: number;
+	protected y: number;
+	element: HTMLElement | null = null; // ← ここでrenderした要素を管理
+
+
+	constructor(id: number, x: number, y: number, type: string) {
+		this.x = x;
+		this.y = y;
+		this.id = id;
+		this.type = type;
+	}
+
+	abstract onDblClick(e: MouseEvent): void;
+
+	abstract onRightClick(e: MouseEvent): void;
+
+	getX() {
+		return this.x;
+	}
+	getY() {
+		return this.y;
+	}
+
+	setPosition(x: number, y: number) {
+		this.x = clamp(x, 0, CANVAS_WIDTH);
+		this.y = clamp(y, 0, CANVAS_HEIGHT);
+		if (this.element) {
+			this.element.style.left = `${this.x}px`;
+			this.element.style.top = `${this.y}px`;
+		}
+	}
+
+	onClick() {
+		selectedNodeId.set(this.id);
+	}
+
+	get isSelected(): boolean {
+		return get(selectedNodeId) === this.id;
+	}
+
+	// ノードのDOM生成（継承先で実装）
+	abstract render(): void;
+
+	protected drawSelectionBorder(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+		if (this.isSelected) {
+			ctx.save();
+			ctx.strokeStyle = '#0078ff';
+			ctx.lineWidth = 1;
+			ctx.setLineDash([4, 2]);
+			ctx.strokeRect(x - 2, y - 2, width + 4, height + 4);
+			ctx.restore();
+		}
+	}
+
+	static getNodeTypeById(id: number): string | null {
+		if (!db) {
+			throw new Error("Database is not initialized.");
+		}
+
+		const result = db.exec(`SELECT type FROM nodes WHERE id = ?;`, [id]);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return null;
+		}
+
+		return result[0].values[0][0] as string;
+	}
+}
+
+export class TextNode extends Node {
+	text: string;
+	size: number;
+	color: string;
+	backgroundColor: string;
+
+	// for dragging
+	private dragOffsetX = 0;
+	private dragOffsetY = 0;
+	private isDragging = false;
+
+	constructor(id: number, x: number, y: number, text = "", size: number, color?: string, backgroundColor?: string) {
+		super(id, x, y);
+		this.text = text;
+		this.size = size;
+		this.color = color || '#ffffff';
+		this.backgroundColor = backgroundColor || 'transparent';
+	}
+
+	render() {
+		if (this.element) {
+			// 既存の要素を更新
+			this.element.textContent = this.text;
+			this.element.style.left = `${this.getX()}px`;
+			this.element.style.top = `${this.getY()}px`;
+			this.element.style.color = this.color;
+			this.element.style.backgroundColor = this.backgroundColor;
+			this.element.style.fontSize = `${this.size}px`;
+			this.element.style.lineHeight = `${this.size}px`;
+			this.element.textContent = this.text;
+			return;
+		}
+
+		const div = document.createElement("div");
+		div.className = "canvas-text confirmed";
+		div.style.position = "absolute";
+		div.style.left = `${this.getX()}px`;
+		div.style.top = `${super.getY()}px`;
+		div.style.zIndex = "10";
+		div.style.color = this.color;
+		div.style.backgroundColor = this.backgroundColor;
+		div.style.padding = "2px 8px";
+		div.style.borderRadius = "4px";
+		div.style.fontSize = `${this.size}px`;
+		div.style.lineHeight = `${this.size}px`;
+		div.style.whiteSpace = "pre-wrap";
+		div.style.pointerEvents = "auto";
+		div.style.cursor = "move";
+		div.style.userSelect = "none";
+		div.tabIndex = 0;
+		div.contentEditable = "false";
+		div.spellcheck = false;
+		div.textContent = this.text;
+
+		// Add click handler for selection
+		div.onclick = (e) => {
+			e.stopPropagation();
+			selectedNodeId.set(this.id);
+		};
+
+		// イベント
+		div.ondblclick = (e) => this.onDblClick(e as MouseEvent);
+		/*	div.oncontextmenu = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.onRightClick(e as MouseEvent);
+			};*/
+		div.onmousedown = (e) => this._onMouseDown(e as MouseEvent);
+		div.oncontextmenu = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.onRightClick(e as MouseEvent);
+		};
+
+		this.element = div;
+	}
+
+	onDblClick(e: MouseEvent) {
+		console.log("TextNode double-clicked:", this.id);
+		if (!this.element) return;
+		TextNode.handleTextNodeEdit(this);
+		e.stopPropagation();
+	}
+
+	onRightClick(e: MouseEvent) {
+		open({
+			x: e.clientX,
+			y: e.clientY,
+			items: [
+				{
+					name: "複製",
+					action: () => {
+						TextNode.insertDB(
+							this.x + 50,
+							this.y + 50,
+							this.size,
+							this.text,
+							this.color,
+							this.backgroundColor
+						);
+					}
+				},
+				{
+					name: "接続削除 (From)",
+					action: () => {
+						// Delete connections where this node is the source
+						if (db) {
+							db.run(`DELETE FROM connections WHERE from_id = ?;`, [this.id]);
+						}
+					}
+				},
+				{
+					name: "接続削除 (To)",
+					action: () => {
+						// Delete connections where this node is the target
+						if (db) {
+							db.run(`DELETE FROM connections WHERE to_id = ?;`, [this.id]);
+						}
+					}
+				},
+				{
+					name: "削除",
+					action: () => {
+						TextNode.deleteDB(this.id);
+					}
+				}
+			]
+		});
+	}
+
+	// ノードのイベント: TextNode
+	static handleTextNodeEdit(textNode: TextNode) {
+
+
+		if (!textNode.element) return;
+		textNode.element.contentEditable = "true";
+		textNode.element.style.userSelect = "text"; // 編集モードで選択可
+		textNode.element.focus();
+
+		const oldText = textNode.element.textContent || "";
+
+		function cleanup() {
+			if (textNode.element && textNode.element.parentNode) {
+				textNode.element.parentNode.removeChild(textNode.element);
+			}
+			// nodes配列からも削除
+			TextNode.deleteDB(textNode.id);
+		}
+
+		const confirm = () => {
+			if (!textNode.element) return;
+			const newText = (textNode.element.textContent || "").trim();
+			if (!newText) {
+				cleanup();
+				return;
+			}
+			textNode.text = newText;
+			textNode.element.contentEditable = "false";
+			textNode.element.style.userSelect = "none"; // 編集終了で選択不可
+			textNode.element.blur();
+			textNode.element.className = "canvas-text confirmed";
+			//	textNode.element.ondblclick = (ev) => {
+			//		ev.stopPropagation();
+			//		this.handleTextNodeEdit(textNode);
+			//		};
+
+			console.log("confirmed text:", textNode.text);
+			TextNode.updateDB(textNode.id, textNode.x, textNode.y, textNode.size, textNode.text, textNode.color, textNode.backgroundColor);
+		}
+		const cancel = () => {
+			if (!textNode.element) return;
+			if (oldText.trim()) {
+				textNode.element.textContent = oldText;
+				textNode.element.contentEditable = "false";
+				textNode.element.style.userSelect = "none"; // 編集終了で選択不可
+				textNode.element.className = "canvas-text confirmed";
+				//			textNode.element.ondblclick = (ev) => {
+				//				ev.stopPropagation();
+				//				this.handleTextNodeEdit(textNode);
+				//			};
+			} else {
+				cleanup();
+			}
+		}
+
+		textNode.element.addEventListener("keydown", function handler(ev) {
+			if (ev.key === "Escape") {
+				ev.preventDefault();
+				cancel();
+				textNode.element?.removeEventListener("keydown", handler);
+			} else if (ev.key === "Enter" && !ev.shiftKey) {
+				ev.preventDefault();
+				//confirm();
+				textNode.element?.blur();
+				//textNode.element?.removeEventListener("keydown", handler);
+			}
+		});
+
+		textNode.element.addEventListener("blur", function handler() {
+			console.log("blur");
+			confirm();
+			textNode.element?.removeEventListener("blur", handler);
+		});
+
+
+	}
+
+	private _onMouseDown(e: MouseEvent) {
+		// 編集モード中はドラッグしない
+		if (this.element && this.element.isContentEditable) {
+			return;
+		}
+		if (e.button !== 0) return;
+		this.isDragging = true;
+		const parent = (this.element as HTMLElement).parentElement;
+		const parentRect = parent?.getBoundingClientRect();
+		const scale =
+			parent?.style.transform?.match(/scale\(([\d.]+)\)/)?.[1]
+				? parseFloat(parent.style.transform.match(/scale\(([\d.]+)\)/)![1])
+				: 1;
+		// 基準点: ノードの現在位置とクリック位置の差分
+		this.dragOffsetX = (e.clientX - (parentRect?.left ?? 0)) / scale - this.x;
+		this.dragOffsetY = (e.clientY - (parentRect?.top ?? 0)) / scale - this.y;
+		document.body.style.cursor = "grabbing";
+		document.addEventListener("mousemove", this._onDragMove);
+		document.addEventListener("mouseup", this._onDragEnd);
+	}
+
+	private _onDragMove = (e: MouseEvent) => {
+		if (!this.isDragging || !this.element) return;
+		const parent = this.element.parentElement;
+		if (!parent) return;
+		const parentRect = parent.getBoundingClientRect();
+		const scale =
+			parent.style.transform?.match(/scale\(([\d.]+)\)/)?.[1]
+				? parseFloat(parent.style.transform.match(/scale\(([\d.]+)\)/)![1])
+				: 1;
+		// クリックした場所を基準に、差分だけ移動
+		let x = (e.clientX - parentRect.left) / scale - this.dragOffsetX;
+		let y = (e.clientY - parentRect.top) / scale - this.dragOffsetY;
+		x = clamp(x, 0, CANVAS_WIDTH);
+		y = clamp(y, 0, CANVAS_HEIGHT);
+		this.x = Math.round(x / Node.GRID_SNAP_SIZE) * Node.GRID_SNAP_SIZE;
+		this.y = Math.round(y / Node.GRID_SNAP_SIZE) * Node.GRID_SNAP_SIZE;
+		this.element.style.left = `${this.x}px`;
+		this.element.style.top = `${this.y}px`;
+	};
+
+	private _onDragEnd = (e: MouseEvent) => {
+		this.isDragging = false;
+		document.body.style.cursor = "";
+		document.removeEventListener("mousemove", this._onDragMove);
+		document.removeEventListener("mouseup", this._onDragEnd);
+		// ここで保存
+		if ("id" in this && typeof (this as any).id === "number") {
+			TextNode.updateDB((this as any).id, this.x, this.y, this.size, this.text, this.color, this.backgroundColor);
+			//updateCoodinatesToMySQL((this as any).id, this.x, this.y);
+		}
+	};
+
+	static getFromDB(id: number): { id: number, x: number, y: number, size: number, text: string, color?: string, backgroundColor?: string } | null {
+		if (id < 1) {
+			return null;
+		}
+
+		const result = db!.exec(
+			`SELECT x, y, size, text, color, backgroundColor
+			 FROM text_data
+			 WHERE id = ?;`,
+			[id]
+		);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return null;
+		}
+
+		const row = result[0].values[0];
+		return {
+			id,
+			x: row[0] as number,
+			y: row[1] as number,
+			size: row[2] as number,
+			text: row[3] as string,
+			color: row[4] !== undefined ? (row[4] as string) : '#ffffff',
+			backgroundColor: row[5] !== undefined ? (row[5] as string) : 'transparent'
+		};
+	}
+
+	static getAllFromDB(): Array<{ id: number, x: number, y: number, size: number, text: string, color?: string, backgroundColor?: string }> {
+		const result = db!.exec(`SELECT id, x, y, size, text, color, backgroundColor FROM text_data;`);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return [];
+		}
+
+		return result[0].values.map(row => ({
+			id: row[0] as number,
+			x: row[1] as number,
+			y: row[2] as number,
+			size: row[3] as number,
+			text: row[4] as string,
+			color: row[5] !== undefined ? (row[5] as string) : '#ffffff',
+			backgroundColor: row[6] !== undefined ? (row[6] as string) : 'transparent'
+		}));
+	}
+
+	static insertDB(x: number, y: number, size: number, text: string, color: string, backgroundColor: string): number {
+		console.debug("inserted:", { x, y, size, text, color, backgroundColor });
+
+		// 1. nodesテーブルにidとtype='text'を登録
+		db!.run(`INSERT INTO nodes (type) VALUES (?);`, ['text']);
+		const result = db!.exec(`SELECT last_insert_rowid() AS id;`);
+		const id = result[0].values[0][0] as number;
+
+		// 2. text_dataテーブルに登録
+		db!.run(
+			`INSERT INTO text_data (id, x, y, size, text, color, backgroundColor) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+			[id, x, y, size, text, color, backgroundColor]
+		);
+
+		const event = new CustomEvent("textNodeChanged", { detail: { id, action: "created", x, y, size, text, color, backgroundColor } });
+		document.dispatchEvent(event);
+
+		return id;
+	}
+
+	static updateDB(id: number, x: number, y: number, size: number, text: string, color: string, backgroundColor: string): void {
+		console.debug("updated:", { id, x, y, size, text, color, backgroundColor });
+
+		db!.run(
+			`UPDATE text_data SET x = ?, y = ?, size = ?, text = ?, color = ?, backgroundColor = ? WHERE id = ?;`,
+			[x, y, size, text, color, backgroundColor, id]
+		);
+		let data = this.getFromDB(id);
+
+		const event = new CustomEvent("textNodeChanged", {
+			detail: {
+				id,
+				action: "updated",
+				x: data?.x,
+				y: data?.y,
+				size: data?.size,
+				text: data?.text,
+				color: data?.color,
+				backgroundColor: data?.backgroundColor
+			}
+		});
+		document.dispatchEvent(event);
+	}
+
+	static deleteDB(id: number): void {
+		console.debug("deleted", id);
+
+		db!.run(`DELETE FROM nodes WHERE id = ?;`, [id]);
+
+		const event = new CustomEvent("textNodeChanged", { detail: { id, action: "deleted" } });
+		document.dispatchEvent(event);
+	}
+
+
+}
+
+export class FieldNode extends Node {
+	thumbnail: string;
+
+	// for dragging
+	private dragOffsetX = 0;
+	private dragOffsetY = 0;
+	private isDragging = false;
+
+	constructor(x: number, y: number, id: number, thumbnail: string) {
+		super(id, x, y);
+		this.thumbnail = thumbnail;
+	}
+	render() {
+		const img = document.createElement("img");
+		img.className = "node-thumbnail";
+		img.style.position = "absolute";
+		img.style.left = `${this.getX()}px`;
+		img.style.top = `${this.getY()}px`;
+		img.style.cursor = "move";
+		img.style.width = "50px";
+		img.dataset.nodeId = String(this.id);
+		img.src = this.thumbnail;
+		img.alt = "thumbnail";
+		img.draggable = false;
+		img.style.transform = "translate(-50%, -50%)";
+
+		img.onclick = (e) => {
+			e.stopPropagation();
+			selectedNodeId.set(this.id);
+		};
+
+		// 先にイベントを登録	
+		img.ondblclick = (e) => this.onDblClick(e as MouseEvent);
+		img.oncontextmenu = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.onRightClick(e as MouseEvent);
+		};
+		img.onmousedown = (e) => this._onMouseDown(e as MouseEvent);
+
+		// ondragstartはaddEventListenerで登録（ondragstartプロパティだとdblclickが効かなくなる場合がある）
+		img.addEventListener("dragstart", (e) => e.preventDefault());
+
+
+		this.element = img;
+	}
+
+	onDblClick(e: MouseEvent) {
+		e.stopPropagation();
+		currentFieldIndex.set(this.id);
+		currentWindow.set(WindowType.Field);
+	}
+	onRightClick(e: MouseEvent) {
+		open({
+			x: e.clientX,
+			y: e.clientY,
+			items: [
+				{
+					name: "開く",
+					action: () => {
+						currentFieldIndex.set(this.id);
+						currentWindow.set(WindowType.Field);
+					}
+				},
+				{
+					name: "複製",
+					action: () => {
+						const env = FieldNode.getFromDB(this.id);
+						if (env) {
+							FieldNode.insertDB(env, {
+								x: this.x + 50,
+								y: this.y + 50,
+								thumbnail: this.thumbnail
+
+							});
+						}
+					}
+				},
+				{
+					name: "接続削除 (From)",
+					action: () => {
+						// Delete connections where this node is the source
+						if (db) {
+							db.run(`DELETE FROM connections WHERE from_id = ?;`, [this.id]);
+						}
+					}
+				},
+				{
+					name: "接続削除 (To)",
+					action: () => {
+						// Delete connections where this node is the target
+						if (db) {
+							db.run(`DELETE FROM connections WHERE to_id = ?;`, [this.id]);
+						}
+					}
+				},
+				{
+					name: "削除",
+					action: () => {
+						FieldNode.deleteDB(this.id);
+					}
+				}
+			]
+		});
+	}
+	
+	_onMouseDown(e: MouseEvent) {
+		if (e.button !== 0) return;
+		this.isDragging = true;
+		const parent = (this.element as HTMLElement).parentElement;
+		const parentRect = parent?.getBoundingClientRect();
+		const scale =
+			parent?.style.transform?.match(/scale\(([\d.]+)\)/)?.[1]
+				? parseFloat(parent.style.transform.match(/scale\(([\d.]+)\)/)![1])
+				: 1;
+		// 基準点: ノードの現在位置とクリック位置の差分
+		this.dragOffsetX = (e.clientX - (parentRect?.left ?? 0)) / scale - this.x;
+		this.dragOffsetY = (e.clientY - (parentRect?.top ?? 0)) / scale - this.y;
+		document.body.style.cursor = "grabbing";
+		document.addEventListener("mousemove", this._onDragMove);
+		document.addEventListener("mouseup", this._onDragEnd);
+	}
+	private _onDragMove = (e: MouseEvent) => {
+		if (!this.isDragging || !this.element) return;
+		const parent = this.element.parentElement;
+		if (!parent) return;
+		const parentRect = parent.getBoundingClientRect();
+		const scale =
+			parent.style.transform?.match(/scale\(([\d.]+)\)/)?.[1]
+				? parseFloat(parent.style.transform.match(/scale\(([\d.]+)\)/)![1])
+				: 1;
+		// クリックした場所を基準に、差分だけ移動
+		let x = (e.clientX - parentRect.left) / scale - this.dragOffsetX;
+		let y = (e.clientY - parentRect.top) / scale - this.dragOffsetY;
+		x = clamp(x, 0, CANVAS_WIDTH);
+		y = clamp(y, 0, CANVAS_HEIGHT);
+		this.x = Math.round(x / Node.GRID_SNAP_SIZE) * Node.GRID_SNAP_SIZE;
+		this.y = Math.round(y / Node.GRID_SNAP_SIZE) * Node.GRID_SNAP_SIZE;
+		this.element.style.left = `${this.x}px`;
+		this.element.style.top = `${this.y}px`;
+	};
+	private _onDragEnd = (e: MouseEvent) => {
+		this.isDragging = false;
+		document.body.style.cursor = "";
+		document.removeEventListener("mousemove", this._onDragMove);
+		document.removeEventListener("mouseup", this._onDragEnd);
+		// ここで保存
+		// FieldNodeのみ保存（idがある場合のみ）
+		if ("id" in this && typeof (this as any).id === "number") {
+			FieldNode.updateCoordinatesDB((this as any).id, this.x, this.y);
+			//updateCoodinatesToMySQL((this as any).id, this.x, this.y);
+		}
+	};
+
+
+	static agetFromDB(id: number): TetrisEnv | null {
+		if (id < 1) {
+			return null;
+		}
+
+		console.log(db!.exec(`SELECT * FROM field_data WHERE id = ?;`, [id]));
+
+		const result = db!.exec(`SELECT data FROM field_data WHERE id = ?;`, [id]);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return null;
+		}
+
+		const jsonData = result[0].values[0][0] as string;
+		try {
+			const instance = new TetrisEnv();
+			return Object.assign(instance, JSON.parse(jsonData));
+		} catch {
+			return null;
+		}
+	}
+
+	static agetAllFromDB(): Array<{ id: number, jsonData: string, x: number | null, y: number | null, thumbnail: string | null }> {
+		const result = db!.exec(`
+			SELECT n.id, n.data, n.x, n.y, n.thumbnail
+			FROM field_data n
+		`);
+
+		//ここはこれで大丈夫です
+		if (result.length === 0 || result[0].values.length === 0) {
+			return [];
+		}
+		return result[0].values.map(row => ({
+			id: row[0] as number,
+			jsonData: row[1] as string,
+			x: row[2] as number | null,
+			y: row[3] as number | null,
+			thumbnail: row[4] as string | null
+		}));
+	}
+
+	static ainsertDB(env: TetrisEnv,
+		options?: { x?: number; y?: number; thumbnail?: string }): number {
+		const jsonData = JSON.stringify(env);
+
+		// 1. nodesテーブルにidとtype='field'を登録
+		db!.run(`INSERT INTO nodes (type) VALUES (?);`, ['field']);
+		const result = db!.exec(`SELECT last_insert_rowid() AS id;`);
+		const id = result[0].values[0][0] as number;
+
+		// 2. field_dataテーブルに登録
+		db!.run(
+			`INSERT INTO field_data (id, data, thumbnail, x, y) VALUES (?, ?, ?, ?, ?);`,
+			[
+				id,
+				jsonData,
+				options?.thumbnail ?? null,
+				options?.x ?? null,
+				options?.y ?? null
+			]
+		);
+
+		FieldNode.updateCoordinatesDB(id, options?.x, options?.y);
+		console.log("FieldNode created:", { id, x: options?.x, y: options?.y, thumbnail: options?.thumbnail });
+
+
+		const event = new CustomEvent("fieldNodeChanged", {
+			detail: {
+				id: id,
+				action: "created",
+				thumbnail: options?.thumbnail,
+				x: options?.x,
+				y: options?.y
+			}
+		});
+		document.dispatchEvent(event);
+
+		return id;
+	}
+
+	static async aupdateDB(index: number, env: TetrisEnv) {
+		const jsonData = JSON.stringify(env);
+
+		// Update the field_node table with new data for the given index
+		db!.run(
+			`UPDATE field_data SET data = ? WHERE id = ?;`,
+			[jsonData, index]
+		);
+
+
+
+		const event = new CustomEvent("fieldNodeChanged", { detail: { id: index, action: "updated", env: jsonData }, });
+		document.dispatchEvent(event);
+
+		if (get(currentWindow) == WindowType.Canvas) {
+			// thumbnail更新
+			this.updateThumbnailDB(index);
+			//	const event = new CustomEvent("fieldNodeChanged", { detail: { id: index, action: "updatedThumbnail", thumbnail:  }, });
+			//	window.dispatchEvent(event);
+		}
+	}
+
+	static aupdateCoordinatesDB(id: number, x?: number, y?: number) {
+		// x, yがundefinedの場合は、field_dataテーブルのx, yの平均値を使う
+		if (x === undefined || y === undefined) {
+			const coordResult = db!.exec(`SELECT x, y FROM field_data;`);
+			if (coordResult.length > 0 && coordResult[0].values.length > 0) {
+				const xs = coordResult[0].values.map(row => row[0] as number).filter(v => typeof v === "number" && !isNaN(v));
+				const ys = coordResult[0].values.map(row => row[1] as number).filter(v => typeof v === "number" && !isNaN(v));
+				x = x === undefined ? (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : CANVAS_WIDTH / 2) : x;
+				y = y === undefined ? (ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : CANVAS_HEIGHT / 2) : y;
+			} else {
+				x = x === undefined ? CANVAS_WIDTH / 2 : x;
+				y = y === undefined ? CANVAS_HEIGHT / 2 : y;
+			}
+		}
+
+		console.debug("updateCoordinatesDB:", { id, x, y });
+
+		// 座標を保存
+		db!.run(
+			`UPDATE field_data SET x = ?, y = ? WHERE id = ?;`,
+			[x, y, id]
+		);
+
+		const event = new CustomEvent("fieldNodeChanged", { detail: { id, action: "updatedCoordinates", x, y } });
+		document.dispatchEvent(event);
+	}
+
+
+	static adeleteDB(id: number) {
+		// nodesテーブルから削除すれば、ON DELETE CASCADEによりfield_dataも削除される
+		db!.run(`DELETE FROM nodes WHERE id = ?;`, [id]);
+		const event = new CustomEvent("fieldNodeChanged", { detail: { id, action: "deleted" } });
+		document.dispatchEvent(event);
+	}
+
+	static async aupdateThumbnailDB(id: number) {
+		console.log(`updateNodeThumbnailToMySQL: ${id}`);
+		// idでnodeを取得
+		const result = db!.exec(`SELECT data, hash FROM field_data WHERE id = ?;`, [id]);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return;
+		}
+		const row = result[0].values[0];
+		const jsonData = row[0] as string;
+		const existingHash = row[1] as string | null;
+
+		const hash = SHA256(jsonData).toString();
+
+		if (existingHash === hash) {
+			return;
+		}
+
+		const instance = new TetrisEnv();
+		Object.assign(instance, JSON.parse(jsonData));
+		const thumbnailData = await getOffScreenCanvasImage(instance.board, undefined, undefined) ?? "";
+
+		// field_dataテーブルにサムネイルデータとハッシュを追加
+		db!.run(
+			`UPDATE field_data SET thumbnail = ?, hash = ? WHERE id = ?;`,
+			[thumbnailData, hash, id]
+		);
+
+		const event = new CustomEvent("fieldNodeChanged", { detail: { id: id?.valueOf() as number, action: "updatedThumbnail", thumbnail: thumbnailData } });
+		document.dispatchEvent(event);
+	}
+
+	static async aupdateAllThumbnailsDB() {
+		const result = db!.exec(`SELECT id FROM field_data;`);
+		if (result.length === 0 || result[0].values.length === 0) {
+			return;
+		}
+		for (const row of result[0].values) {
+			const id = row[0] as number;
+			await this.updateThumbnailDB(id);
+		}
+	}
+}
+
+export class GroupNode extends Node {
+	// グループノード用のプロパティ
+	render() {
+		const div = document.createElement("div");
+		div.className = "group-node";
+		div.style.position = "absolute";
+		div.style.left = `${this.getX()}px`;
+		div.style.top = `${this.getY()}px`;
+		div.style.width = "150px";
+		div.style.height = "150px";
+		div.style.border = "2px dashed #888";
+		div.style.borderRadius = "8px";
+		div.style.pointerEvents = "auto";
+		div.style.cursor = "move";
+		div.draggable = true;
+
+		// イベント
+		div.ondblclick = (e) => this.onDblClick(e as MouseEvent);
+		div.oncontextmenu = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.onRightClick(e as MouseEvent);
+		};
+		div.onmousedown = (e) => this._onMouseDown(e as MouseEvent);
+
+		parent.appendChild(div);
+		this.element = div; // ← ここでelementに入れる
+	}
+
+	onDblClick(e: MouseEvent) {
+		// グループノードのダブルクリック時の処理
+	}
+
+	onRightClick(e: MouseEvent) {
+		// グループノードの右クリック時の処理
+		// (Handled in Svelte for context menu)
+	}
+}
+
+export class ArrowNode extends Node {
+	// 矢印ノード用のプロパティ
+	render(parent: HTMLElement) {
+		const div = document.createElement("div");
+		div.className = "arrow-node";
+		div.style.position = "absolute";
+		div.style.left = `${this.getX()}px`;
+		div.style.top = `${this.getY()}px`;
+		div.style.width = "2px";
+		div.style.height = "50px";
+		div.style.backgroundColor = "#333";
+		div.style.transformOrigin = "top";
+		div.style.pointerEvents = "auto";
+		div.style.cursor = "move";
+		div.draggable = true;
+
+		// 矢印の先端
+		const tip = document.createElement("div");
+		tip.className = "arrow-tip";
+		tip.style.position = "absolute";
+		tip.style.left = "-8px";
+		tip.style.top = "40px";
+		tip.style.width = "0";
+		tip.style.height = "0";
+		tip.style.borderLeft = "8px solid transparent";
+		tip.style.borderRight = "8px solid transparent";
+		tip.style.borderBottom = "8px solid #333";
+		tip.style.transform = "translateX(-50%)";
+
+		div.appendChild(tip);
+
+		// イベント
+		div.ondblclick = (e) => this.onDblClick(e as MouseEvent);
+		div.oncontextmenu = (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.onRightClick(e as MouseEvent);
+		};
+		div.onmousedown = (e) => this.onMouseDown(e as MouseEvent);
+
+		parent.appendChild(div);
+		this.element = div; // ← ここでelementに入れる
+	}
+
+	onDblClick(e: MouseEvent) {
+		// 矢印ノードのダブルクリック時の処理
+	}
+
+	onRightClick(e: MouseEvent) {
+		// 矢印ノードの右クリック時の処理
+		// (Handled in Svelte for context menu)
+	}
+
+	// ArrowNode独自のonMouseDown
+	onMouseDown(e: MouseEvent) {
+		// ここにArrowNode専用の動作を実装
+		// 例: ドラッグ開始ではなく、矢印の始点・終点を設定するなど
+		// 必要に応じてe.stopPropagation()等も
+		console.log("ArrowNode onMouseDown", e);
+		// ...独自の処理...
+	}
+}
+
+
+function clamp(val: number, min: number, max: number) {
+	return Math.max(min, Math.min(max, val));
+}

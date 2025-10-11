@@ -1,80 +1,68 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "fumen-rs",
-  "version": "0.1.2",
-  "identifier": "com.fumen.app",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../build"
-  },
-  "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "fumen-rs",
-        "width": 532,
-        "height": 770,
-        "minWidth": 370,
-        "minHeight": 400,
-        "fullscreen": false,
-        "resizable": true,
-        "maximizable": false,
-        "decorations": false,
-        "shadow": true,
-        "devtools": true
-      },
-      {
-        "label": "debug",
-        "url": "visualizer",
-        "title": "DEBUG",
-        "width": 532,
-        "height": 770,
-        "fullscreen": false,
-        "resizable": false,
-        "maximizable": false,
-        "devtools": true,
-        "visible": false
-      }
-    ],
-    "security": {
-      "csp": {
-        "default-src": "'self' customprotocol: asset: data: blob: http://asset.localhost",
-        "connect-src": "'self' https://storage.googleapis.com/ https://teachablemachine.withgoogle.com/ https://fumen.zui.jp/ ipc: http://ipc.localhost http://asset.localhost https://api.csdotnet.dev wss://api.csdotnet.dev data: blob:",
-        "font-src": "*",
-        "img-src": "'self' asset: http://asset.localhost blob: data:",
-        "media-src": "*",
-        "object-src": "*",
-        "script-src": "'self' 'unsafe-inline' 'unsafe-eval'",
-        "style-src": "'self' 'unsafe-inline'",
-        "worker-src": "'self' blob: data:"
-      },
-      "assetProtocol": {
-        "enable": true,
-        "scope": [
-          "**/*"
-        ]
-      }
-    }
-  },
-  "bundle": {
-    "windows": {
-      "nsis": {
-        "installerHooks": "./windows/hooks.nsi",
-        "installerIcon": "icons/icon.ico"
-      }
-    },
-    "resources": [
-      "assets/**/*"
-    ],
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.ico"
-    ]
-  }
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "fumen-rs",
+	"version": "0.2.0",
+	"identifier": "com.fumen.app",
+	"build": {
+		"beforeDevCommand": "npm run dev",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "npm run build",
+		"frontendDist": "../build"
+	},
+	"app": {
+		"windows": [
+			{
+				"label": "main",
+				"title": "fumen-rs",
+				"width": 532,
+				"height": 770,
+				"minWidth": 370,
+				"minHeight": 400,
+				"fullscreen": false,
+				"resizable": true,
+				"maximizable": false,
+				"decorations": false,
+				"shadow": true,
+				"devtools": true
+			}
+		],
+		"security": {
+			"csp": {
+				"default-src": "'self' customprotocol: asset: data: blob: http://asset.localhost",
+				"connect-src": "'self' https://storage.googleapis.com/ https://fumen.zui.jp/ ipc: http://ipc.localhost http://asset.localhost https://fumen.csdotnet.dev wss://fumen.csdotnet.dev data: blob:",
+				"font-src": "*",
+				"img-src": "'self' asset: http://asset.localhost blob: data:",
+				"media-src": "*",
+				"object-src": "*",
+				"script-src": "'self' 'unsafe-inline' 'unsafe-eval'",
+				"style-src": "'self' 'unsafe-inline'",
+				"worker-src": "'self' blob: data:"
+			},
+			"assetProtocol": {
+				"enable": true,
+				"scope": [
+					"**/*"
+				]
+			}
+		}
+	},
+	"bundle": {
+		"windows": {
+			"nsis": {
+				"installerHooks": "./windows/hooks.nsi",
+				"installerIcon": "icons/icon.ico"
+			}
+		},
+		"resources": [
+			"assets/**/*"
+		],
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.ico"
+		]
+	}
 }

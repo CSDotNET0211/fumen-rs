@@ -1,4 +1,5 @@
 {
+	"menu-panel-settings": "Open Panel Settings",
 	"menu-panel": "Panel",
 	"menu-panel-preset": "Presets",
 	"menu-panel-panels": "Panels",
@@ -26,6 +27,8 @@
 	"menu-support-me-on-ko-fi": "Support me on Ko-fi",
 	"menu-auto-fill-queue": "Auto Fill Queue",
 	"menu-auto-apply-field": "Auto Apply Field",
+	"menu-open-github": "Open repository on GitHub",
+	"menu-always-on-top": "Always on Top",
 	"dialog-all-files": "All Formats",
 	"dialog-fumen-files": "Fumen",
 	"dialog-image-files": "Image",

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 50 50">
+  <!-- Generator: Adobe Illustrator 29.5.1, SVG Export Plug-In . SVG Version: 2.1.0 Build 141)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #9e9d9e;
+      }
+
+      .st1 {
+        fill: #231f20;
+      }
+
+      .st2 {
+        fill: #fff;
+      }
+
+      .st3 {
+        stroke: #fff;
+        stroke-miterlimit: 10;
+      }
+
+      .st3, .st4 {
+        fill: none;
+      }
+
+      .st5 {
+        fill: #636464;
+      }
+    </style>
+  </defs>
+  <g id="Layer_2">
+    <rect class="st1" x="-1.97" y="-.69" width="52.48" height="51.34"/>
+  </g>
+  <g id="Layer_1">
+    <rect class="st3" x="1.36" y="33.82" width="14.03" height="14.03"/>
+    <rect class="st2" x="17.25" y="33.82" width="14.03" height="14.03"/>
+    <rect class="st2" x="33.14" y="33.82" width="14.03" height="14.03"/>
+    <rect class="st2" x="1.36" y="17.97" width="14.03" height="14.03"/>
+    <path class="st2" d="M30.28,18.97v12.03h-12.03v-12.03h12.03M31.28,17.97h-14.03v14.03h14.03v-14.03h0Z"/>
+    <rect class="st2" x="33.14" y="17.97" width="14.03" height="14.03"/>
+    <rect class="st4" x="3.34" y="6.22" width="10.1" height="10.1"/>
+    <rect class="st4" x="19.23" y="6.04" width="10.1" height="10.1"/>
+    <rect class="st4" x="35.08" y="6.41" width="10.1" height="10.1"/>
+    <g>
+      <polygon class="st2" points="8.39 15.93 3.34 12.33 3.34 10.89 8.39 14.49 8.39 15.93"/>
+      <polygon class="st2" points="8.39 15.93 13.44 12.33 13.44 10.89 8.39 14.49 8.39 15.93"/>
+    </g>
+    <g>
+      <polygon class="st2" points="24.28 15.74 19.23 12.14 19.23 10.7 24.28 14.3 24.28 15.74"/>
+      <polygon class="st2" points="24.28 15.74 29.33 12.14 29.33 10.7 24.28 14.3 24.28 15.74"/>
+    </g>
+    <g>
+      <polygon class="st2" points="40.18 16.12 35.12 12.52 35.12 11.08 40.18 14.68 40.18 16.12"/>
+      <polygon class="st2" points="40.18 16.12 45.23 12.52 45.23 11.08 40.18 14.68 40.18 16.12"/>
+    </g>
+    <g>
+      <polygon class="st0" points="8.37 13.41 3.32 9.81 3.32 8.37 8.37 11.97 8.37 13.41"/>
+      <polygon class="st0" points="8.37 13.41 13.42 9.81 13.42 8.37 8.37 11.97 8.37 13.41"/>
+    </g>
+    <g>
+      <polygon class="st0" points="24.26 13.22 19.2 9.62 19.2 8.18 24.26 11.78 24.26 13.22"/>
+      <polygon class="st0" points="24.26 13.22 29.31 9.62 29.31 8.18 24.26 11.78 24.26 13.22"/>
+    </g>
+    <g>
+      <polygon class="st0" points="40.15 13.6 35.1 10 35.1 8.56 40.15 12.16 40.15 13.6"/>
+      <polygon class="st0" points="40.15 13.6 45.21 10 45.21 8.56 40.15 12.16 40.15 13.6"/>
+    </g>
+    <g>
+      <polygon class="st5" points="8.37 10.89 3.32 7.29 3.32 5.85 8.37 9.45 8.37 10.89"/>
+      <polygon class="st5" points="8.37 10.89 13.42 7.29 13.42 5.85 8.37 9.45 8.37 10.89"/>
+    </g>
+    <g>
+      <polygon class="st5" points="24.26 10.7 19.2 7.1 19.2 5.66 24.26 9.26 24.26 10.7"/>
+      <polygon class="st5" points="24.26 10.7 29.31 7.1 29.31 5.66 24.26 9.26 24.26 10.7"/>
+    </g>
+    <g>
+      <polygon class="st5" points="40.15 11.08 35.1 7.48 35.1 6.04 40.15 9.64 40.15 11.08"/>
+      <polygon class="st5" points="40.15 11.08 45.21 7.48 45.21 6.04 40.15 9.64 40.15 11.08"/>
+    </g>
+  </g>
+</svg>
