@@ -58,7 +58,7 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: editBoard },
-      })
+      }),
     );
   }
 
@@ -103,7 +103,7 @@
 
     // ファイルドロップイベントリスナーを追加
     const tetrisBoardElement = document.querySelector(
-      ".tetris-board-container"
+      ".tetris-board-container",
     );
     if (tetrisBoardElement) {
       tetrisBoardElement.addEventListener("dragover", handleDragOver);
@@ -118,7 +118,7 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: payload.board, ghosts: payload.ghosts },
-      })
+      }),
     );
   }
 
@@ -127,7 +127,7 @@
     if (env == null) return;
 
     document.dispatchEvent(
-      new CustomEvent("responsebotfield", { detail: env.clone() })
+      new CustomEvent("responsebotfield", { detail: env.clone() }),
     );
   }
 
@@ -143,7 +143,7 @@
   }
 
   function handleFieldUpdate(event: Event) {
-    // if ((event as CustomEvent)?.detail?.id != get(currentFieldIndex)) return;
+    if ((event as CustomEvent)?.detail?.id != get(currentFieldIndex)) return;
 
     let env = (event as CustomEvent)?.detail?.data;
     if (!env) {
@@ -155,19 +155,19 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: env.board },
-      })
+      }),
     );
 
     document.dispatchEvent(
       new CustomEvent("onupdatehold", {
         detail: env.hold,
-      })
+      }),
     );
 
     document.dispatchEvent(
       new CustomEvent("onupdatenext", {
         detail: env.next,
-      })
+      }),
     );
   }
 
@@ -182,19 +182,19 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: env.board },
-      })
+      }),
     );
 
     document.dispatchEvent(
       new CustomEvent("onupdatehold", {
         detail: env.hold,
-      })
+      }),
     );
 
     document.dispatchEvent(
       new CustomEvent("onupdatenext", {
         detail: env.next,
-      })
+      }),
     );
   }
 
@@ -255,7 +255,7 @@
 
   function updateOverrideBoard() {
     const overrideBoard = new Array(TetrisEnv.WIDTH * TetrisEnv.HEIGHT).fill(
-      undefined
+      undefined,
     );
     for (const block of specialBlocks!) {
       overrideBoard[block] = 8;
@@ -264,7 +264,7 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board, override: overrideBoard },
-      })
+      }),
     );
   }
 
@@ -304,7 +304,6 @@
 
     const tetromino = TETROMINO_MAP.get(positions);
     if (tetromino == null) {
-      //  console.error("Invalid tetromino");
       return;
     }
 
@@ -317,7 +316,7 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: editBoard },
-      })
+      }),
     );
 
     let cloned = currentFieldNode.get()!.clone();
@@ -325,6 +324,13 @@
     history.update((history: History) => {
       history.add($t("common.history-field"), cloned, Tetromino[tetromino]);
       return history;
+    });
+
+    // specialBlocks = [];
+    //    updateOverrideBoard();
+    currentFieldNode.update((env) => {
+      if (env) env.board = [...editBoard];
+      return env;
     });
   }
 
@@ -362,7 +368,7 @@
         history.add(
           $t("common.history-field"),
           currentFieldNode.get()!.clone(),
-          content
+          content,
         );
         return history;
       });
@@ -392,7 +398,7 @@
           document.dispatchEvent(
             new CustomEvent("onFileDropped", {
               detail: { file, data, type: "json" },
-            })
+            }),
           );
         } catch (error) {
           console.error("JSON parse error:", error);
@@ -407,7 +413,7 @@
         document.dispatchEvent(
           new CustomEvent("onFileDropped", {
             detail: { file, data: content, type: "fumen" },
-          })
+          }),
         );
       };
       reader.readAsText(file);
@@ -416,7 +422,7 @@
       document.dispatchEvent(
         new CustomEvent("onFileDropped", {
           detail: { file, type: "unknown" },
-        })
+        }),
       );
     }
   }
@@ -440,13 +446,13 @@
     if (env == null) return;
 
     document.dispatchEvent(
-      new CustomEvent("onupdatefield", { detail: { board: env.board } })
+      new CustomEvent("onupdatefield", { detail: { board: env.board } }),
     );
     document.dispatchEvent(
-      new CustomEvent("onupdatehold", { detail: env.hold })
+      new CustomEvent("onupdatehold", { detail: env.hold }),
     );
     document.dispatchEvent(
-      new CustomEvent("onupdatenext", { detail: env.next })
+      new CustomEvent("onupdatenext", { detail: env.next }),
     );
 
     //初期化
@@ -477,7 +483,7 @@
 
     // ファイルドロップイベントリスナーを削除
     const tetrisBoardElement = document.querySelector(
-      ".tetris-board-container"
+      ".tetris-board-container",
     );
     if (tetrisBoardElement) {
       tetrisBoardElement.removeEventListener("dragover", handleDragOver);
@@ -508,7 +514,7 @@
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
         detail: { board: currentFieldNode.get()!.board },
-      })
+      }),
     );
   }
 </script>

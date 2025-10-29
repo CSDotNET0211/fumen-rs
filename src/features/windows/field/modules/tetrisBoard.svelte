@@ -28,6 +28,12 @@
   export let tetrisBoardSprites: CellSprite[];
   let boardContainer: Container;
 
+  // オフスクリーン用のグローバル変数
+  let tetrisBoardOffscreenApp: Application | null = null;
+  let tetrisBoardOffscreenSprites: CellSprite[] = [];
+  let offscreenBoardContainer: Container | null = null;
+  let offscreenCanvas: HTMLCanvasElement | null = null;
+
   export let leftPosition: number = 0;
   export let topPosition: number = 0;
 
@@ -90,24 +96,35 @@
   export async function getOffScreenCanvasImage(
     board: Tetromino[] | undefined,
     ghosts: boolean[] | undefined,
-    override: number[] | undefined
+    override: number[] | undefined,
   ): Promise<string | undefined> {
-    const tetrisBoardOffscreenApp = new Application();
-    const tetrisBoardOffscreenSprites: CellSprite[] = [];
-    const offscreenBoardContainer = new Container();
-    await initializeBoard(
-      tetrisBoardOffscreenApp,
-      tetrisBoardOffscreenSprites,
-      offscreenBoardContainer,
-      document.getElementById("offscreenCanvas") as HTMLCanvasElement
-    );
+    // オフスクリーン用のアプリケーションとコンテナを初回のみ作成
+    if (tetrisBoardOffscreenApp === null) {
+      tetrisBoardOffscreenApp = new Application();
+      tetrisBoardOffscreenSprites = [];
+      offscreenBoardContainer = new Container();
+
+      // オフスクリーン用のキャンバスを作成
+      if (offscreenCanvas === null) {
+        offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.id = "offscreenCanvas";
+        offscreenCanvas.style.display = "none";
+        document.body.appendChild(offscreenCanvas);
+      }
+
+      await initializeBoard(
+        tetrisBoardOffscreenApp,
+        tetrisBoardOffscreenSprites,
+        offscreenBoardContainer,
+        offscreenCanvas,
+      );
+    }
 
     updateFieldInternal(tetrisBoardOffscreenSprites, board, ghosts, override);
     const data = await tetrisBoardOffscreenApp?.renderer.extract.base64(
-      tetrisBoardOffscreenApp.stage
+      tetrisBoardOffscreenApp.stage,
     );
 
-    tetrisBoardOffscreenApp.destroy();
     return data;
   }
 
@@ -122,7 +139,7 @@
       tetrisBoardApp,
       tetrisBoardSprites,
       boardContainer,
-      document.getElementById("canvas") as HTMLCanvasElement
+      document.getElementById("canvas") as HTMLCanvasElement,
     );
 
     tetrisBoardApp.canvas.addEventListener("mousemove", handleMouseMove);
@@ -158,6 +175,20 @@
     tetrisBoardSprites = [];
 
     tetrisBoardApp?.destroy();
+
+    // オフスクリーン関連のリソースもクリーンアップ
+    if (tetrisBoardOffscreenApp) {
+      tetrisBoardOffscreenApp.destroy();
+      tetrisBoardOffscreenApp = null;
+      tetrisBoardOffscreenSprites = [];
+      offscreenBoardContainer = null;
+    }
+
+    if (offscreenCanvas) {
+      document.body.removeChild(offscreenCanvas);
+      offscreenCanvas = null;
+    }
+
     window.removeEventListener("resize", adjustCanvasSize);
 
     const canvasElement = document.getElementById("canvas");
@@ -167,7 +198,7 @@
     boardSprites: CellSprite[],
     board: Tetromino[] | undefined,
     ghosts: boolean[] | undefined,
-    override: number[] | undefined
+    override: number[] | undefined,
   ) {
     for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
       for (let x = 0; x < TetrisEnv.WIDTH; x++) {
@@ -219,7 +250,7 @@
   export function drawTetrisFieldBg(
     app: Application,
     borderOpacity: number,
-    bgOpacity: number
+    bgOpacity: number,
   ) {
     const bgHexOpacity = Math.round(bgOpacity * 255)
       .toString(16)
@@ -251,7 +282,7 @@
 
   export function initializeCells(
     board_container: Container,
-    board_sprites: CellSprite[]
+    board_sprites: CellSprite[],
   ) {
     for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
       for (let x = 0; x < TetrisEnv.WIDTH; x++) {
@@ -271,7 +302,7 @@
 
   export async function initializePixijs(
     app: Application,
-    canvasParent: HTMLCanvasElement
+    canvasParent: HTMLCanvasElement,
   ) {
     await app.init({
       backgroundAlpha: 0,
@@ -289,7 +320,7 @@
     boardContainer: Container,
     canvasParent: HTMLCanvasElement,
     borderOpacity: number = 1,
-    bgOpacity: number = 1
+    bgOpacity: number = 1,
   ) {
     await initializePixijs(app, canvasParent);
     boardContainer.addChild(drawTetrisFieldBg(app, borderOpacity, bgOpacity));
@@ -297,6 +328,10 @@
 
     initializeCells(boardContainer, boardSprites);
   }
+
+  // グローバル変数でテクスチャをキャッシュ
+  let cachedBlockTexture: Texture<any> | null = null;
+  let cachedBlockImageURL: string | null = null;
 
   async function initializeTetrominoImages() {
     const canvas = document.createElement("canvas");
@@ -306,7 +341,15 @@
     const img = new Image();
 
     await getBlockImageURL().then(async (filePath) => {
-      const texture = await Assets.load(filePath);
+      // キャッシュされたテクスチャがあり、同じファイルパスの場合は再利用
+      let texture: Texture<any>;
+      if (cachedBlockTexture && cachedBlockImageURL === filePath) {
+        texture = cachedBlockTexture;
+      } else {
+        texture = await Assets.load(filePath);
+        cachedBlockTexture = texture;
+        cachedBlockImageURL = filePath;
+      }
 
       img.src = filePath;
       img.crossOrigin = "anonymous";
@@ -327,7 +370,7 @@
               TETROMINO_SHAPES[mino_index][i][0] * 30,
               TETROMINO_SHAPES[mino_index][i][1] * 30,
               30,
-              30
+              30,
             );
           }
 
@@ -405,7 +448,7 @@
 
   export async function getCanvasImage(): Promise<string | undefined> {
     const data = await tetrisBoardApp?.renderer.extract.base64(
-      tetrisBoardApp.stage
+      tetrisBoardApp.stage,
     );
     return data;
   }

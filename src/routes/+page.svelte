@@ -90,7 +90,7 @@
 
     //TODO: ごちゃつきすぎ,GUIの更新は後回し？
     await loadGameConfigOrInitialize();
-    await loadTranslations("en", "/");
+    await loadTranslations(get(gameConfig)?.language ?? "en", "/");
     await initializeWindows();
     currentWindow.set(WindowType.Splash);
     await initializeFields();

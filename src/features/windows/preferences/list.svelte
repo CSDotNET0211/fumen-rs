@@ -58,6 +58,5 @@
     background-color: #353535;
   }
   section {
-    min-height: 12em;
   }
 </style>

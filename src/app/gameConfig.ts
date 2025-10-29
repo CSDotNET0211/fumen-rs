@@ -66,14 +66,15 @@ export class GameConfig {
 		obj.rotationType = RotationType.SRS;
 		obj.color = "#FFFFFF";
 		obj.currentPreset = "Default";
-		obj.socketAddress = "https://api.csdotnet.dev";
+		obj.socketAddress = "https://fumen.csdotnet.dev";
 		obj.bgBorderOpacity = 0.8;
 		obj.language = "en";
 		obj.ghostPiece = true;
 		obj.windowSize = undefined;
 		obj.panelPresets = PanelPresets.getDefault()
 		obj.imageRecognitionModels = {
-			ppt: await fetch("/ppt.json").then(res => res.json())
+			ppt: await fetch("/ppt.json").then(res => res.json()),
+			tetrio: await fetch("/tetrio.json").then(res => res.json()),
 		};
 		obj.imageRecognitionType = "ppt";
 		obj.serverPort = 3002;

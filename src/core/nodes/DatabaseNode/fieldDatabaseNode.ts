@@ -56,7 +56,10 @@ export class FieldDatabaseNode extends DatabaseNode {
 			updateFields.push("y = ?");
 			values.push(this.y);
 		}
-
+		if (this.hash !== undefined) {
+			updateFields.push("hash = ?");
+			values.push(this.hash);
+		}
 
 		if (updateFields.length > 0) {
 			const fieldSql = `UPDATE field_data SET ${updateFields.join(", ")} WHERE id = ?`;

@@ -85,6 +85,16 @@ export function registerShortcuts() {
 			}));
 
 	shortcuts.register(
+		new Shortcut("fumen.shortcut.saveas",
+			"s",
+			true,
+			true,
+			false,
+			() => {
+				commands.executeCommand("fumen.saveas");
+			}));
+
+	shortcuts.register(
 		new Shortcut("fumen.shortcut.copy-as-fumen",
 			"c",
 			true,

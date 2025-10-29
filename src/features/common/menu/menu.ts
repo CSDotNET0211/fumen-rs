@@ -32,6 +32,7 @@ export function reloadMenuItems() {
 						commands.executeCommand("fumen.new", true);
 					}
 				),
+				//	new MenuItem("file-separator-3", MenuItemType.Separator, "", "", () => { }),
 				new MenuItem(
 					"open",
 					MenuItemType.Normal,
@@ -41,10 +42,20 @@ export function reloadMenuItems() {
 						commands.executeCommand("fumen.open");
 					}
 				),
+				new MenuItem("file-separator-2", MenuItemType.Separator, "", "", () => { }),
+				new MenuItem(
+					"save-as",
+					MenuItemType.Normal,
+					translations("common.menu-save-as") + "...",
+					shortcuts.getKeyById("fumen.shortcut.saveas") ?? "",
+					() => {
+						commands.executeCommand("fumen.saveas");
+					}
+				),
 				new MenuItem(
 					"save",
 					MenuItemType.Normal,
-					translations("common.menu-save") + "...",
+					translations("common.menu-save"),
 					shortcuts.getKeyById("fumen.shortcut.save") ?? "",
 					() => {
 						commands.executeCommand("fumen.save");

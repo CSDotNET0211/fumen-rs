@@ -10,6 +10,7 @@ import { selectedNodeId } from "../selectionStore";
 import { currentWindow, WindowType } from "../../../../app/stores/window";
 import { currentFieldIndex, currentFieldNode } from "../../../../app/stores/data";
 import { open } from "../contextMenu.svelte";
+import { t } from "../../../../translations/translations";
 
 export class FieldCanvasNode extends CanvasNode {
 	isDragging: boolean;
@@ -88,14 +89,14 @@ export class FieldCanvasNode extends CanvasNode {
 			y: e.clientY,
 			items: [
 				{
-					name: "開く",
+					name: get(t)("common.context-menu-open"),
 					action: () => {
 						currentFieldIndex.set(this.id);
 						currentWindow.set(WindowType.Field);
 					}
 				},
 				{
-					name: "複製",
+					name: get(t)("common.context-menu-duplicate"),
 					action: async () => {
 						const node = getNodeDatabase(this.id);
 						node!.id = undefined;
@@ -124,7 +125,7 @@ export class FieldCanvasNode extends CanvasNode {
 					}
 				},*/
 				{
-					name: "削除",
+					name: get(t)("common.context-menu-delete"),
 					action: () => {
 						const node = getNodeDatabase(this.id);
 						get(nodeUpdater)?.delete(node!);
@@ -182,7 +183,7 @@ export class FieldCanvasNode extends CanvasNode {
 		// FieldNodeのみ保存（idがある場合のみ）
 		//	if ("id" in this && typeof (this as any).id === "number") {
 		//		FieldNode.updateCoordinatesDB((this as any).id, this.x, this.y);
-		//updateCoodinatesToMySQL((this as any).id, this.x, this.y);
+		//		updateCoodinatesToMySQL((this as any).id, this.x, this.y);
 		//	}
 	};
 

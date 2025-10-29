@@ -9,7 +9,6 @@ export class LocalNodeUpdater extends NodeUpdater {
 		loadDatabase(dbBin, useSplash);
 	}
 	async update(node: DatabaseNode): Promise<void> {
-		//db updateにnodeを渡す
 		updateNodeDatabase(node);
 	}
 	async create(node: DatabaseNode): Promise<number> {
