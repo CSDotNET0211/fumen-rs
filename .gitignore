@@ -13,3 +13,4 @@ src-tauri/imageGenerated/
 .idea
 /todo
 package-lock.json
+/target

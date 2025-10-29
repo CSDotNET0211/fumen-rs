@@ -21,8 +21,16 @@ export function getDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 	if (!data) {
 		throw new Error("Database is not initialized or empty.");
 	}
-	//writeFile("database.sqlite", data, { baseDir: BaseDirectory.Resource });
-	return data;
+
+	const cloned = new SQL.Database(data);
+	cloned.run(`
+	UPDATE field_data SET thumbnail = NULL, hash = NULL;
+`);
+
+	//	const allFieldData = cloned.exec("SELECT * FROM field_data");
+	//	console.log("field_data table contents:", allFieldData);
+
+	return cloned.export();
 }
 
 export async function initializeDatabase() {
@@ -53,7 +61,6 @@ export function resetDatabase() {
 
 export function generateDefaultDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 	let db: Database = new SQL.Database();
-
 	db.run(`
 		CREATE TABLE nodes (
 			id INTEGER PRIMARY KEY,
@@ -105,6 +112,9 @@ export function generateDefaultDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 	`);
 	db.run(`INSERT INTO config (version) VALUES (1);`);
 
+	// Enable foreign key constraints
+	db.run(`PRAGMA foreign_keys = ON;`);
+
 
 	const insertSql = `INSERT INTO nodes (type) VALUES (?)`;
 	db.run(insertSql, ["field"]);
@@ -132,6 +142,8 @@ export function generateDefaultDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 }
 export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>, useSplash: boolean) {
 	db = new SQL.Database(dbData);
+	db.run(`PRAGMA foreign_keys = ON;`);
+
 
 	if (useSplash) {
 		const originalWindow = get(currentWindow);
@@ -150,11 +162,15 @@ export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>, useSplash: boo
 		currentWindow.set(WindowType.Splash);
 		currentFieldIndex.set(-1);
 	} else {
+		currentFieldIndex.set(-1);
 		const firstFieldResult = getLatestFieldId();
 		currentFieldIndex.set(firstFieldResult!);
 	}
 
-	const event = new CustomEvent("databaseLoaded");
+
+	const event = new CustomEvent("databaseLoaded", {
+		detail: { id: getLatestFieldId() }
+	});
 	document.dispatchEvent(event);
 }
 
@@ -204,6 +220,8 @@ export function deleteNodeDatabase(node: DatabaseNode) {
 	}
 
 	node.deleteNode(db);
+
+
 
 	const firstFieldResult = getLatestFieldId();
 	if (firstFieldResult) {
@@ -350,6 +368,7 @@ export function getAllTextNodesDatabase(): TextDatabaseNode[] {
 }
 
 export async function updateThumbnailDatabase(id: number) {
+
 	if (!db) {
 		throw new Error("Database is not initialized.");
 	}
@@ -368,10 +387,11 @@ export async function updateThumbnailDatabase(id: number) {
 
 	const thumbnailHash = SHA256(JSON.stringify(fieldNode.data)).toString();
 
-	if (thumbnailHash == fieldNode.thumbnail && fieldNode.thumbnail != undefined) {
+	if (thumbnailHash == fieldNode.hash && fieldNode.thumbnail != undefined) {
 		return;
 	}
 
+	console.log("Updating thumbnail for node ID:", id);
 	const thumbnail = await getOffScreenCanvasImage(fieldNode.data?.board, undefined, undefined) ?? "";
 
 	await get(nodeUpdater)!.update(new FieldDatabaseNode(fieldNode.id, undefined, undefined, thumbnail, undefined, thumbnailHash));

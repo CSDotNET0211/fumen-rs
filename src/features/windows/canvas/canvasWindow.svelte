@@ -22,6 +22,7 @@
   import { nodeUpdater } from "../../../core/nodes/NodeUpdater/nodeUpdater";
   import { TextDatabaseNode } from "../../../core/nodes/DatabaseNode/textDatabaseNode";
   import { TextCanvasNode } from "./CanvasNode/textCanvasNode";
+  import { t } from "../../../translations/translations";
 
   let container: HTMLDivElement;
   let canvasInner: HTMLDivElement;
@@ -460,10 +461,10 @@
       y: e.clientY,
       items: [
         {
-          name: "新規",
+          name: $t("common.canvas-menu-new"),
           submenu: [
             {
-              name: "盤面",
+              name: $t("common.canvas-menu-field"),
               action: async () => {
                 // Create new field at clicked position
                 const x = clamp(canvasX, 0, CANVAS_WIDTH);
@@ -482,7 +483,7 @@
               },
             },
             {
-              name: "テキスト",
+              name: $t("common.canvas-menu-text"),
               action: async () => {
                 const x = clamp(canvasX, 0, CANVAS_WIDTH);
                 const y = clamp(canvasY, 0, CANVAS_HEIGHT);
@@ -504,13 +505,13 @@
           ],
         },
         {
-          name: "canvasを保存",
+          name: $t("common.canvas-menu-save-canvas"),
           action: () => {
             saveCanvasView();
           },
         },
         {
-          name: "カメラをリセット",
+          name: $t("common.canvas-menu-reset-camera"),
           action: () => {
             offsetX = (container.clientWidth - CANVAS_WIDTH) / 2;
             offsetY = (container.clientHeight - CANVAS_HEIGHT) / 2;
@@ -530,7 +531,7 @@
       y: e.clientY,
       items: [
         {
-          name: "カメラをリセット",
+          name: $t("common.canvas-menu-reset-camera"),
           action: () => {
             offsetX = (container.clientWidth - CANVAS_WIDTH) / 2;
             offsetY = (container.clientHeight - CANVAS_HEIGHT) / 2;
@@ -561,19 +562,19 @@
   <div class="canvas-help">
     <div class="canvas-help-row">
       <img src="./mouse_right.svg" alt="mouse" class="canvas-help-icon" />
-      <span class="canvas-help-desc">メニュー</span>
+      <span class="canvas-help-desc">{$t("common.canvas-help-menu")}</span>
     </div>
     <div class="canvas-help-row">
       <span class="canvas-help-key">Ctrl</span>
       <span class="canvas-help-plus">+</span>
       <img src="./mouse_wheel.svg" alt="mouse" class="canvas-help-icon" />
-      <span class="canvas-help-desc">ズーム</span>
+      <span class="canvas-help-desc">{$t("common.canvas-help-zoom")}</span>
     </div>
     <div class="canvas-help-row">
       <img src="./mouse_wheel_click.svg" alt="mouse" class="canvas-help-icon" />
       <span class="canvas-help-plus">+</span>
       <img src="./mouse_move.svg" alt="move" class="canvas-help-icon" />
-      <span class="canvas-help-desc">移動</span>
+      <span class="canvas-help-desc">{$t("common.canvas-help-move")}</span>
     </div>
   </div>
 </div>
@@ -711,5 +712,12 @@
     margin-left: 6px;
     font-size: 11px;
     font-weight: 500;
+  }
+  .canvas-help-divider {
+    width: 1px;
+    height: 12px;
+    background: white;
+    opacity: 0.2;
+    flex-shrink: 0;
   }
 </style>

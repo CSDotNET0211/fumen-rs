@@ -16,3 +16,5 @@ export const fumenImage: Writable<HTMLImageElement | null> = writable(null);
 
 export const isAlwaysOnTop = writable<boolean>(false);
 export const unknownThumbnailBase64 = writable<string>("");
+
+export const currentProjectPath = writable<string | null>(null);

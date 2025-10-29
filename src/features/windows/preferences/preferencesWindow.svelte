@@ -76,7 +76,7 @@
 
     // Find all range sliders and set initial --value
     sliderElements = Array.from(
-      document.querySelectorAll<HTMLInputElement>('input[type="range"]')
+      document.querySelectorAll<HTMLInputElement>('input[type="range"]'),
     );
     sliderElements.forEach((slider) => {
       updateSliderValue(slider);
@@ -109,7 +109,7 @@
 
     const usedItems = [...leftItems, ...rightItems];
     const availableItems = COMPONENT_ITEMS.filter(
-      (item) => !usedItems.includes(item)
+      (item) => !usedItems.includes(item),
     );
     availableComponentItems = availableItems.map((item) => ({
       id: item,
@@ -160,20 +160,23 @@
   }
 
   function handleKeyInput(event: KeyboardEvent) {
-    event.preventDefault();
     const key = get(editingKey);
     const keymapName = get(selectedKeymap);
 
-    gameConfig.update((config: GameConfig | null) => {
-      if (!config) return config;
+    if (key) {
+      event.preventDefault();
 
-      if (key && config.keymaps?.has(keymapName)) {
-        config.keymaps.get(keymapName)![key].key = event.code;
-        stopEditing();
-      }
+      gameConfig.update((config: GameConfig | null) => {
+        if (!config) return config;
 
-      return config;
-    });
+        if (config.keymaps?.has(keymapName)) {
+          config.keymaps.get(keymapName)![key].key = event.code;
+          stopEditing();
+        }
+
+        return config;
+      });
+    }
   }
 
   function back(event: any) {
@@ -218,7 +221,7 @@
   function moveComponentBetweenPanels(
     fromPanel: Writable<string[]>,
     toPanel: Writable<string[]>,
-    index: number
+    index: number,
   ) {
     fromPanel.update((fromComponents) => {
       const [moved] = fromComponents.splice(index, 1);
@@ -234,7 +237,7 @@
       ((Number(slider.value) - Number(slider.min)) /
         (Number(slider.max) - Number(slider.min))) *
         100 +
-        "%"
+        "%",
     );
   }
 
@@ -349,7 +352,7 @@
   <button id="back" onclick={back}>✖</button>
   <Panel
     title={$t("common.preferences-keymap")}
-    description="ショートカットや、キーコンフィグに関する設定を行います。"
+    description={$t("common.preferences-keymap-description")}
   >
     <!-- svelte-ignore a11y_label_has_associated_control -->
 
@@ -394,7 +397,7 @@
 
   <Panel
     title={$t("common.preferences-game")}
-    description="ゲームの設定を変更します。"
+    description={$t("common.preferences-game-description")}
   >
     <label for="rotation-system"
       >{$t("common.preferences-rotation-system")}</label
@@ -477,8 +480,8 @@
   >
 
   <Panel
-    title="Components"
-    description="左右のコンポーネント。ドラッグドロップで並び替え可能。"
+    title={$t("common.preferences-components")}
+    description={$t("common.preferences-components-description")}
   >
     <label for="panel-presets">Panel Presets</label>
     <select
@@ -513,18 +516,24 @@
     </div>
   </Panel>
 
-  <Panel title={$t("common.preferences-online")} description="オンライン">
+  <Panel
+    title={$t("common.preferences-online")}
+    description={$t("common.preferences-online-description")}
+  >
     <!-- svelte-ignore a11y_label_has_associated_control -->
     <label>{$t("common.preferences-socket-address")}</label>
     <input
       type="text"
       bind:value={$gameConfig!.socketAddress}
-      placeholder="https://api.csdotnet.dev"
+      placeholder="https://fumen.csdotnet.dev"
       onkeydown={(e) => e.stopPropagation()}
     />
   </Panel>
 
-  <Panel title="Misc" description="その他の設定">
+  <Panel
+    title={$t("common.preferences-misc")}
+    description={$t("common.preferences-misc-description")}
+  >
     <!-- svelte-ignore a11y_label_has_associated_control -->
     <label>{$t("common.preferences-language")}</label>
 
@@ -533,18 +542,21 @@
       <option value="ja">ja</option>
     </select>
     <div style="display: flex;justify-content:left;margin-top: 10px;">
-      <button onclick={resetGameConfig}>
+      <button onclick={resetGameConfig} class="wrap-japanese">
         {$t("common.preferences-reset-button")}
       </button>
-      <button onclick={openExecutableFolder}>
+      <button onclick={openExecutableFolder} class="wrap-japanese">
         {$t("common.preferences-open-folder")}
       </button>
-      <button onclick={resetWindowStatus}>
+      <button onclick={resetWindowStatus} class="wrap-japanese">
         {$t("common.preferences-reset-window-status")}
       </button>
     </div>
   </Panel>
-  <Panel title="画像認識モデル" description="画像認識に使うモデルの管理">
+  <Panel
+    title={$t("common.preferences-image-recognition-models")}
+    description={$t("common.preferences-image-recognition-models-description")}
+  >
     <ul style="padding-left: 0;">
       {#if $gameConfig?.imageRecognitionModels}
         {#each Object.entries($gameConfig.imageRecognitionModels) as [modelName, modelData], i}
@@ -561,9 +573,13 @@
       {/if}
     </ul>
     <div style="margin-top: 10px;">
-      <button onclick={addModel}>モデル追加</button>
-      <button onclick={trainModel}>モデルを学習</button>
-      <button onclick={resetModels}>デフォルトに戻す</button>
+      <button onclick={addModel}>{$t("common.preferences-add-model")}</button>
+      <button onclick={trainModel}
+        >{$t("common.preferences-train-model")}</button
+      >
+      <button onclick={resetModels}
+        >{$t("common.preferences-reset-models")}</button
+      >
     </div>
   </Panel>
   <div style="margin-bottom: 100px;"></div>
@@ -783,5 +799,11 @@
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+
+  .wrap-japanese {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    line-break: strict;
   }
 </style>

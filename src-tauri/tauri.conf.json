@@ -5,7 +5,7 @@
 	"identifier": "com.fumen.app",
 	"build": {
 		"beforeDevCommand": "npm run dev",
-		"devUrl": "http://localhost:1420",
+		"devUrl": "http://localhost:3004",
 		"beforeBuildCommand": "npm run build",
 		"frontendDist": "../build"
 	},

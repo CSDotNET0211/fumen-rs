@@ -87,7 +87,7 @@ export async function joinRoomWS(
 	}
 
 	const { roomPlayers, isHost, playerId }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean, playerId: string } = await wsSocket?.emitWithAck("join_room", roomName, userName);
-	console.log(roomPlayers, isHost, playerId);
+	//console.log(roomPlayers, isHost, playerId);
 
 	players.set(new Set(roomPlayers));
 
@@ -114,7 +114,6 @@ export async function joinRoomWS(
 export async function sendUpdateDatabaseWS(dbBin: Uint8Array, useSplash: boolean): Promise<void> {
 	const response = await wsSocket?.emitWithAck("update_db", dbBin, useSplash);
 	const uIntResponse = new Uint8Array(response);
-	console.log(response);
 
 	loadDatabase(uIntResponse, true);
 }
@@ -303,7 +302,6 @@ function registerEvents(wsSocket: Socket) {
 	wsSocket.on("update_db", (dbBin: ArrayBuffer, useSplash: boolean, ack) => {
 		const uIntResponse = new Uint8Array(dbBin);
 
-		console.log(dbBin, useSplash, ack);
 
 		loadDatabase(uIntResponse, true);
 
@@ -315,8 +313,6 @@ function registerEvents(wsSocket: Socket) {
 	wsSocket.on("update_node", async (nodeBson: Uint8Array, callback) => {
 		const uIntResponse = new Uint8Array(nodeBson);
 		const databaseNodeObj = BSON.deserialize(uIntResponse);
-
-		console.log("update_node");
 
 		const databaseNode = resolveDatabaseNode(databaseNodeObj);
 		updateNodeDatabase(databaseNode);

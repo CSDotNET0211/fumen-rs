@@ -19,8 +19,13 @@ export abstract class DatabaseNode {
 		if (this.id === undefined) {
 			throw new Error("Node ID is undefined. Cannot delete node.");
 		}
+
+		console.log("Deleting node with ID:", this.id);
 		const deleteSql = `DELETE FROM nodes WHERE id = ?`;
 		db.run(deleteSql, [this.id]);
+
+		console.log("Node deleted. Current database state:", db.exec("SELECT * FROM nodes"));
+		console.log("Current field data state:", db.exec("SELECT * FROM field_data"));
 	};
 
 }

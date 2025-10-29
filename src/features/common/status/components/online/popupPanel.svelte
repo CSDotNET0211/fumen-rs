@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get } from "svelte/store";
+  import { get, writable } from "svelte/store";
   import { gameConfig } from "../../../../../app/stores/config";
   import PopupPanel from "../../popupPanel.svelte";
   import {
@@ -12,27 +12,25 @@
     throwErrorServer,
     wsSocket,
   } from "../../../../../services/online";
-
-  let roomName: string = "";
-  let userName: string = "";
+  import { roomName, userName } from "./online";
 
   let showCursor = true;
 
   function handleConnectClick(
-    event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }
+    event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement },
   ) {
     connectWS();
   }
   function handleDisconnectClick(
-    event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }
+    event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement },
   ) {
     disconnectWS();
   }
 
   function handleJoinRoomClick(
-    event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }
+    event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement },
   ) {
-    joinRoomWS(roomName, userName);
+    joinRoomWS(get(roomName), get(userName));
   }
 </script>
 
@@ -58,14 +56,14 @@
         type="text"
         placeholder="Enter Roomname"
         class="room-input input"
-        bind:value={roomName}
+        bind:value={$roomName}
         onkeydown={(e) => e.stopPropagation()}
       />
       <input
         type="text"
         placeholder="Enter Username"
         class="username-input input"
-        bind:value={userName}
+        bind:value={$userName}
         onkeydown={(e) => e.stopPropagation()}
       />
       <button class="join-button" onclick={handleJoinRoomClick}
@@ -79,7 +77,7 @@
     <div class="room-info">
       <div class="room-header">
         <span class="room-label">Room</span>
-        <span class="room-name">{roomName}</span>
+        <span class="room-name">{$roomName}</span>
       </div>
       <div class="players-header">
         <span class="players-label">Players</span>

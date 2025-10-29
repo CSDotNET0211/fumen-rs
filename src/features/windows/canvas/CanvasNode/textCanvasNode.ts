@@ -8,6 +8,7 @@ import { CanvasNode } from "./canvasNode";
 import { clamp } from "../util";
 import type { DatabaseNode } from "../../../../core/nodes/DatabaseNode/databaseNode";
 import { open } from "../contextMenu.svelte";
+import { t } from "../../../../translations/translations";
 
 export class TextCanvasNode extends CanvasNode {
 	isDragging: boolean;
@@ -184,7 +185,7 @@ export class TextCanvasNode extends CanvasNode {
 			y: e.clientY,
 			items: [
 				{
-					name: "複製",
+					name: get(t)("common.context-menu-duplicate"),
 					action: async () => {
 						const node = getNodeDatabase(this.id);
 						node!.id = undefined;
@@ -195,7 +196,7 @@ export class TextCanvasNode extends CanvasNode {
 				},
 				/*
 				{
-					name: "接続削除 (From)",
+					name: get(t)("context-menu-delete-connections-from"),
 					action: () => {
 						// Delete connections where this node is the source
 						if (db) {
@@ -204,7 +205,7 @@ export class TextCanvasNode extends CanvasNode {
 					}
 				},
 				{
-					name: "接続削除 (To)",
+					name: get(t)("context-menu-delete-connections-to"),
 					action: () => {
 						// Delete connections where this node is the target
 						if (db) {
@@ -213,7 +214,7 @@ export class TextCanvasNode extends CanvasNode {
 					}
 				},*/
 				{
-					name: "削除",
+					name: get(t)("common.context-menu-delete"),
 					action: () => {
 						get(nodeUpdater)?.delete(getNodeDatabase(this.id)!);
 					}

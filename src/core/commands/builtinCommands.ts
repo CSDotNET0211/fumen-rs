@@ -16,7 +16,7 @@ import { currentField, currentOverlayField, FieldType, OverlayFieldType } from "
 import { currentFieldIndex, currentFieldNode } from "../../app/stores/data.ts";
 import { getCanvasImage } from "../../features/windows/field/modules/tetrisBoard.svelte";
 import { history } from "../../app/stores/history.ts";
-import { fumenImage, fumenPages, snapshot } from "../../app/stores/misc.ts";
+import { currentProjectPath, fumenImage, fumenPages, snapshot } from "../../app/stores/misc.ts";
 import { currentWindow, WindowType } from "../../app/stores/window.ts";
 import { generateDefaultDatabaseAsBinary, getDatabaseAsBinary, getLatestFieldId, loadDatabase, } from "../nodes/db.ts";
 import { nodeUpdater } from "../nodes/NodeUpdater/nodeUpdater.ts";
@@ -73,7 +73,7 @@ export function registerCommands() {
 			currentWindow.set(WindowType.Field);
 
 			snapshot.set([]);
-
+			currentProjectPath.set(null);
 
 		}));
 
@@ -125,11 +125,8 @@ export function registerCommands() {
 						currentFieldIndex.set(-1);
 						await get(nodeUpdater)!.load(uint8Array, false);
 
-						//	await commands.executeCommand("fumen.new", false);
-						//	throw new Error("Failed to load TetrisEnv from file");
-
-						//	currentFieldNode.set(envMap);
-						//currentFieldIndex.set(getLatestFieldId()!);
+						// Set current project path
+						currentProjectPath.set(file);
 
 						currentField.set(FieldType.TetrisEdit);
 						currentWindow.set(WindowType.Field);
@@ -143,9 +140,19 @@ export function registerCommands() {
 
 		}))
 
-	// Command: fumen.save
 	commands.registerCommand(
-		new Command("fumen.save", async () => {
+		new Command("fumen.saveas", async () => {
+			const currentPath = get(currentProjectPath);
+			let defaultPath = "fumen";
+			console.log(currentPath);
+
+			// If there's a current project path, use its directory
+			if (currentPath !== null) {
+				const pathParts = currentPath.split('\\');
+				pathParts.pop(); // Remove filename
+				defaultPath = pathParts.join('\\') + '\\fumen';
+			}
+
 			const path = await save({
 				filters: [
 					{
@@ -153,17 +160,33 @@ export function registerCommands() {
 						extensions: ["sqlite"],
 					},
 				],
-				defaultPath: "fumen",
+				defaultPath: defaultPath,
 			});
 
 			if (path !== null) {
 				//let bin = currentFieldNode.get()!.serialize();
 				let bin = await getDatabaseAsBinary();
 				await writeFile(path, bin);
+
+				// Set current project path
+				currentProjectPath.set(path);
 			}
 		}));
 
-	// Command: fumen.paste
+	commands.registerCommand(
+		new Command("fumen.save", async () => {
+			let path = get(currentProjectPath);
+
+			if (path === null) {
+				await commands.executeCommand("fumen.saveas");
+				return;
+			}
+
+			//let bin = currentFieldNode.get()!.serialize();
+			let bin = await getDatabaseAsBinary();
+			await writeFile(path, bin);
+		}));
+
 	commands.registerCommand(
 		new Command("fumen.paste", async () => {
 			readText()
