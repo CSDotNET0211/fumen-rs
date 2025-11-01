@@ -26,7 +26,7 @@
   let blockTextures: Texture<any>[];
 
   export let tetrisBoardSprites: CellSprite[];
-  let boardContainer: Container;
+  export let boardContainer: Container;
 
   // オフスクリーン用のグローバル変数
   let tetrisBoardOffscreenApp: Application | null = null;
@@ -247,20 +247,29 @@
     }
   }
 
-  export function drawTetrisFieldBg(
+  export function createTetrisFieldBg(
     app: Application,
     borderOpacity: number,
     bgOpacity: number,
   ) {
-    const bgHexOpacity = Math.round(bgOpacity * 255)
-      .toString(16)
-      .padStart(2, "0");
     const graphics = new Graphics()
       .rect(0, 0, app.canvas.width, app.canvas.height)
-      .fill(`0x000000${bgHexOpacity}`)
+      .fill({ color: 0x000000, alpha: bgOpacity })
       .rect(0, 0, app.renderer.width, CELL_SIZE * 3)
-      .fill(`0x1c1c1c${bgHexOpacity}`);
+      .fill({ color: 0x1c1c1c, alpha: bgOpacity });
 
+    const texture = app.renderer.generateTexture(graphics);
+    const sprite = new Sprite(texture);
+    return sprite;
+  }
+
+  export function createTetrisFieldBorder(
+    app: Application,
+    borderOpacity: number,
+    bgOpacity: number,
+  ) {
+    const graphics = new Graphics();
+    console.log(CELL_SIZE * 3);
     for (let y = CELL_SIZE * 3; y <= app.canvas.height; y += CELL_SIZE) {
       graphics
         .moveTo(0, y)
@@ -323,7 +332,14 @@
     bgOpacity: number = 1,
   ) {
     await initializePixijs(app, canvasParent);
-    boardContainer.addChild(drawTetrisFieldBg(app, borderOpacity, bgOpacity));
+
+    boardContainer.addChild(createTetrisFieldBg(app, borderOpacity, bgOpacity));
+
+    let borderSprite = createTetrisFieldBorder(app, borderOpacity, bgOpacity);
+    //TODO: ここきれいにする！
+    borderSprite.y = CELL_SIZE * 3;
+    boardContainer.addChild(borderSprite);
+
     app.stage.addChild(boardContainer);
 
     initializeCells(boardContainer, boardSprites);

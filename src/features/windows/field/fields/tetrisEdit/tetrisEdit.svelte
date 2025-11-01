@@ -16,6 +16,7 @@
     suppressFieldUpdateNotification,
   } from "../../../../../app/stores/misc";
   import TetrisBoard, {
+    boardContainer,
     mount as mountTetrisBoard,
     tetrisBoardSprites,
     unmount,
@@ -30,7 +31,7 @@
 
   let isLeftClicking = false;
   let erase_mode = false;
-  let pointerIsDown = false;
+  //let pointerIsDown = false;
   let isDragOver = false;
 
   let editBoard: Tetromino[];
@@ -92,6 +93,9 @@
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("keydown", handleKeyDown);
+
+    boardContainer.eventMode = "static";
+    boardContainer.on("pointerdown", handlePointerDownBoard);
 
     for (let i = 0; i < tetrisBoardSprites.length; i++) {
       let cell = tetrisBoardSprites[i];
@@ -198,12 +202,18 @@
     );
   }
 
+  function handlePointerDownBoard(event: FederatedPointerEvent) {
+    editBoard = [...currentFieldNode.get()!.board];
+    specialBlocks = [];
+  }
+
   function handlePointerDown(event: FederatedPointerEvent) {
+    event.stopPropagation();
     //  suppressFieldUpdateNotification.set(true);
     editBoard = [...currentFieldNode.get()!.board];
 
     if (event.button === 0) {
-      pointerIsDown = true;
+      //pointerIsDown = true;
 
       const pos = (event.target as CellSprite).pos;
       erase_mode = currentFieldNode.get()!.board[pos] !== Tetromino.Empty;
@@ -219,7 +229,7 @@
   }
 
   function handlePointerEnter(event: FederatedPointerEvent) {
-    if (isLeftClicking && pointerIsDown) {
+    if (isLeftClicking) {
       const pos = (event.target as CellSprite).pos;
 
       if (get(selectedMino) == 8) {
@@ -343,12 +353,7 @@
   }
 
   function pointerUpCommon(event: FederatedPointerEvent) {
-    if (
-      event.button === 0 &&
-      isLeftClicking &&
-      specialBlocks === null &&
-      pointerIsDown
-    ) {
+    if (event.button === 0 && isLeftClicking && specialBlocks === null) {
       const diff = countBoardDiff(editBoard, currentFieldNode.get()!.board);
       if (diff == 0) return history;
 
@@ -373,8 +378,6 @@
         return history;
       });
     }
-
-    pointerIsDown = false;
   }
 
   function handleFileDrop(event: Event) {

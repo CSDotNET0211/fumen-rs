@@ -120,7 +120,6 @@ export function registerCommands() {
 						const blob = await response.blob();
 						const arrayBuffer = await blob.arrayBuffer();
 						const uint8Array = new Uint8Array(arrayBuffer);
-						console.log(uint8Array);
 
 						currentFieldIndex.set(-1);
 						await get(nodeUpdater)!.load(uint8Array, false);
@@ -128,8 +127,10 @@ export function registerCommands() {
 						// Set current project path
 						currentProjectPath.set(file);
 
-						currentField.set(FieldType.TetrisEdit);
-						currentWindow.set(WindowType.Field);
+						//currentFieldIndex.set(getLatestFieldId()!);
+						//	currentField.set(FieldType.TetrisEdit);
+						//	currentWindow.set(WindowType.Field);
+
 
 						break;
 					}

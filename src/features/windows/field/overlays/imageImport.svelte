@@ -14,7 +14,8 @@
 
   import { TetrisEnv } from "tetris/src/tetris_env";
   import {
-    drawTetrisFieldBg,
+    createTetrisFieldBg,
+    createTetrisFieldBorder,
     getOffScreenCanvasImage,
     initializeCells,
     initializePixijs,
@@ -95,7 +96,7 @@
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
 
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>
-      shrinkChunk(chunk)
+      shrinkChunk(chunk),
     );
 
     const imageDataArray: ImageData[] = [];
@@ -170,11 +171,14 @@
 
     await initializePixijs(
       app,
-      document.getElementById("canvas-import-image") as HTMLCanvasElement
+      document.getElementById("canvas-import-image") as HTMLCanvasElement,
     );
 
     const canvasWidth = app.canvas.width;
     const canvasHeight = app.canvas.height;
+
+    boardContainer.addChild(createTetrisFieldBg(app, 1, 1));
+
     if (loadedImage.width < canvasWidth) {
       const scaleFactor = canvasWidth / loadedImage.width;
       loadedImage.scale.set(scaleFactor, scaleFactor);
@@ -187,10 +191,9 @@
     loadedImage.y =
       loadedImage.height / 2 + (canvasHeight - loadedImage.height);
 
-    app.stage.addChild(loadedImage);
+    boardContainer.addChild(loadedImage);
 
-    bgImage = drawTetrisFieldBg(app, 1, 0);
-    boardContainer.addChild(bgImage);
+    boardContainer.addChild(createTetrisFieldBorder(app, 1, 1));
 
     app.stage.addChild(boardContainer);
 
@@ -247,7 +250,7 @@
   async function predictChunks(
     chunkDataArray: ImageData[],
     chunkSize: { width: number; height: number },
-    model: RandomForestClassifier
+    model: RandomForestClassifier,
   ): Promise<string[]> {
     const predictions: string[] = [];
     for (const chunkData of chunkDataArray) {
@@ -290,7 +293,7 @@
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>
-      shrinkChunk(chunk)
+      shrinkChunk(chunk),
     );
 
     const chunkDataArray = [];
@@ -306,7 +309,7 @@
         width: chunks[0].width,
         height: chunks[0].height,
       },
-      currentModel.model!
+      currentModel.model!,
     );
 
     if (predictionFailed) {
@@ -374,7 +377,7 @@
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>
-      shrinkChunk(chunk)
+      shrinkChunk(chunk),
     );
     console.log("2");
     const chunkDataArray = [];
@@ -389,7 +392,7 @@
         width: chunks[0].width,
         height: chunks[0].height,
       },
-      currentModel.model!
+      currentModel.model!,
     );
     console.log("4");
     console.log("Predictions on drag end:", predictions);
@@ -650,7 +653,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
     width: 200px;
-    pointer-events: all;
+    pointer-events: none;
   }
 
   .button-container {
@@ -666,7 +669,7 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    pointer-events: all;
+    pointer-events: none;
   }
 
   .preview-wrapper {

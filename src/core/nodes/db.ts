@@ -29,8 +29,8 @@ export function getDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 
 	//	const allFieldData = cloned.exec("SELECT * FROM field_data");
 	//	console.log("field_data table contents:", allFieldData);
-
-	return cloned.export();
+	//TODO:
+	return data;
 }
 
 export async function initializeDatabase() {
