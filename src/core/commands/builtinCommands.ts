@@ -54,23 +54,22 @@ export function registerCommands() {
 
 			//1 -> 1のときは更新されないので、強制的に-1にしておく
 			currentFieldIndex.set(-1);
-			await get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary(), false);
-
+			await get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary(), get(currentWindow) !== WindowType.Splash);
 			history.set(new History());
-			history.update((history: History) => {
-				history.add(
-					get(t)("common.history-base"),
-					currentFieldNode.get()!.clone(),
-					"",
-				);
-				return history;
-			});
+			/*	history.update((history: History) => {
+					history.add(
+						get(t)("common.history-base"),
+						currentFieldNode.get()!.clone(),
+						"",
+					);
+					return history;
+				});*/
 
 			//	get(nodeUpdater)!.load
 
 
-			currentField.set(FieldType.TetrisEdit);
-			currentWindow.set(WindowType.Field);
+			//	currentField.set(FieldType.TetrisEdit);
+			//	currentWindow.set(WindowType.Field);
 
 			snapshot.set([]);
 			currentProjectPath.set(null);
@@ -120,7 +119,6 @@ export function registerCommands() {
 						const blob = await response.blob();
 						const arrayBuffer = await blob.arrayBuffer();
 						const uint8Array = new Uint8Array(arrayBuffer);
-						console.log(uint8Array);
 
 						currentFieldIndex.set(-1);
 						await get(nodeUpdater)!.load(uint8Array, false);
@@ -128,8 +126,10 @@ export function registerCommands() {
 						// Set current project path
 						currentProjectPath.set(file);
 
-						currentField.set(FieldType.TetrisEdit);
-						currentWindow.set(WindowType.Field);
+						//currentFieldIndex.set(getLatestFieldId()!);
+						//	currentField.set(FieldType.TetrisEdit);
+						//	currentWindow.set(WindowType.Field);
+
 
 						break;
 					}

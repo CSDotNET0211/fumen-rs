@@ -21,7 +21,7 @@
     document.addEventListener("onupdatenext", handleUpdateNext);
 
     let next = currentFieldNode.get()!.next;
-    updateNext(next);
+    if (next) updateNext(next);
   });
 
   onDestroy(() => {

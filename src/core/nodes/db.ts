@@ -29,8 +29,8 @@ export function getDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 
 	//	const allFieldData = cloned.exec("SELECT * FROM field_data");
 	//	console.log("field_data table contents:", allFieldData);
-
-	return cloned.export();
+	//TODO:
+	return data;
 }
 
 export async function initializeDatabase() {
@@ -140,31 +140,39 @@ export function generateDefaultDatabaseAsBinary(): Uint8Array<ArrayBufferLike> {
 
 	return db.export();
 }
-export function loadDatabase(dbData: Uint8Array<ArrayBufferLike>, useSplash: boolean) {
+export async function loadDatabase(dbData: Uint8Array<ArrayBufferLike>, useSplash: boolean) {
 	db = new SQL.Database(dbData);
 	db.run(`PRAGMA foreign_keys = ON;`);
-
 
 	if (useSplash) {
 		const originalWindow = get(currentWindow);
 
-		document.addEventListener("onWindowTransitionEnd", async () => {
-			await new Promise(resolve => setTimeout(resolve, 100));
-			const firstFieldResult = getLatestFieldId();
-			if (firstFieldResult) {
-				currentFieldIndex.set(firstFieldResult);
-				currentWindow.set(originalWindow);
-				WindowFadeDuration.set(300);
-			}
-		}, { once: true });
+		const waitForTransition = new Promise<void>((resolve) => {
+			document.addEventListener("onWindowTransitionEnd", async () => {
+				await new Promise(resolve => setTimeout(resolve, 100));
+				resolve();
+			}, { once: true });
+		});
 
-		currentField.set(FieldType.TetrisEdit);
+		//currentField.set(FieldType.TetrisEdit);
 		currentWindow.set(WindowType.Splash);
 		currentFieldIndex.set(-1);
+
+		await waitForTransition;
+
+		const firstFieldResult = getLatestFieldId()!;
+		//if (firstFieldResult) {
+		currentFieldIndex.set(firstFieldResult);
+		currentWindow.set(originalWindow);
+		WindowFadeDuration.set(300);
+		//}
+
+
 	} else {
 		currentFieldIndex.set(-1);
 		const firstFieldResult = getLatestFieldId();
 		currentFieldIndex.set(firstFieldResult!);
+
 	}
 
 

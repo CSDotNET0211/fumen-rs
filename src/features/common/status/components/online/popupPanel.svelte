@@ -9,10 +9,11 @@
     isConnecting,
     joinRoomWS,
     players,
+    roomName,
     throwErrorServer,
+    userName,
     wsSocket,
   } from "../../../../../services/online";
-  import { roomName, userName } from "./online";
 
   let showCursor = true;
 

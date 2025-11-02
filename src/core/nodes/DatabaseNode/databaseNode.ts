@@ -24,8 +24,6 @@ export abstract class DatabaseNode {
 		const deleteSql = `DELETE FROM nodes WHERE id = ?`;
 		db.run(deleteSql, [this.id]);
 
-		console.log("Node deleted. Current database state:", db.exec("SELECT * FROM nodes"));
-		console.log("Current field data state:", db.exec("SELECT * FROM field_data"));
 	};
 
 }
