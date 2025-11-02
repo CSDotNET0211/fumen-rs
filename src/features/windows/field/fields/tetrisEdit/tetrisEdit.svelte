@@ -29,13 +29,14 @@
   import { DatabaseNode } from "../../../../../core/nodes/DatabaseNode/databaseNode";
   import { getNodeDatabase } from "../../../../../core/nodes/db";
 
-  let isLeftClicking = false;
-  let erase_mode = false;
+  //let isLeftClicking = false;
+  type DrawMode = "normal" | "erase" | "special" | null;
+  let drawMode: DrawMode = null;
   //let pointerIsDown = false;
   let isDragOver = false;
 
-  let editBoard: Tetromino[];
-  let updatedCoordinates: { [key: number]: Tetromino };
+  let editBoard: Tetromino[] | null = null;
+  //let updatedCoordinates: { [key: number]: Tetromino };
 
   //let unlistenAutoCanvasUpdater: Unsubscriber;
   let unlistenAutoFillQueue: Unsubscriber;
@@ -52,9 +53,8 @@
     return diffCount;
   }
 
-  function draw(pos: number, erase_mode: boolean) {
-    if (erase_mode) editBoard[pos] = Tetromino.Empty;
-    else editBoard[pos] = get(selectedMino);
+  function draw(pos: number, mino: number) {
+    editBoard![pos] = mino;
 
     document.dispatchEvent(
       new CustomEvent("onupdatefield", {
@@ -89,9 +89,8 @@
     document.addEventListener("onapplybot", handleApplyBot);
     document.addEventListener("onclearbot", handleClearBot);
     document.addEventListener("requestbotfield", requestBotField);
+    document.addEventListener("mouseup", handlePointerUp);
 
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("keydown", handleKeyDown);
 
     boardContainer.eventMode = "static";
@@ -101,8 +100,9 @@
       let cell = tetrisBoardSprites[i];
       cell.on("pointerdown", handlePointerDown);
       cell.on("pointerenter", handlePointerEnter);
-      cell.on("pointerup", handlePointerUp);
-      cell.on("pointerupoutside", handlePointerUpOutside);
+      //  cell.on("pointerup", handlePointerUp);
+      //  cell.on("pointerupoutside", handlePointerUpOutside);
+      //  cell.on("pointerup")
     }
 
     // ファイルドロップイベントリスナーを追加
@@ -202,63 +202,94 @@
     );
   }
 
-  function handlePointerDownBoard(event: FederatedPointerEvent) {
+  function initDownKey() {
     editBoard = [...currentFieldNode.get()!.board];
     specialBlocks = [];
   }
 
+  function handlePointerDownBoard(event: FederatedPointerEvent) {
+    initDownKey();
+  }
+
   function handlePointerDown(event: FederatedPointerEvent) {
     event.stopPropagation();
-    //  suppressFieldUpdateNotification.set(true);
-    editBoard = [...currentFieldNode.get()!.board];
+    initDownKey();
 
-    if (event.button === 0) {
-      //pointerIsDown = true;
-
+    if (event.buttons === 1) {
       const pos = (event.target as CellSprite).pos;
-      erase_mode = currentFieldNode.get()!.board[pos] !== Tetromino.Empty;
 
-      if (get(selectedMino) == 8) {
-        specialBlocks = [];
-        handleSpecialBlockPointerDown(pos);
-      } else {
-        specialBlocks = null;
-        draw(pos, erase_mode);
+      if (get(selectedMino) == 8) drawMode = "special";
+      else if (currentFieldNode.get()!.board[pos] == Tetromino.Empty)
+        drawMode = "normal";
+      else drawMode = "erase";
+
+      switch (drawMode) {
+        case "normal":
+          handleNormalPointerDown(pos);
+          break;
+        case "erase":
+          handleErasePointerDown(pos);
+          break;
+        case "special":
+          handleSpecialPointerDown(pos);
+          break;
       }
+    }
+
+    function handleNormalPointerDown(pos: number) {
+      draw(pos, get(selectedMino));
+    }
+
+    function handleErasePointerDown(pos: number) {
+      draw(pos, Tetromino.Empty);
+    }
+
+    function handleSpecialPointerDown(pos: number) {
+      specialBlocks!.push(pos);
+      updateOverrideBoard();
     }
   }
 
   function handlePointerEnter(event: FederatedPointerEvent) {
-    if (isLeftClicking) {
+    if (event.buttons === 1) {
+      if (editBoard == null) initDownKey();
+
       const pos = (event.target as CellSprite).pos;
 
-      if (get(selectedMino) == 8) {
-        handleSpecialBlockPointerEnter(pos);
-      } else {
-        draw(pos, erase_mode);
+      if (!drawMode) {
+        if (get(selectedMino) == 8) drawMode = "special";
+        else drawMode = "normal";
       }
-    }
-  }
 
-  function handleSpecialBlockPointerDown(pos: number) {
-    if (!erase_mode) {
-      specialBlocks!.push(pos);
-    }
-    updateOverrideBoard();
-  }
+      switch (drawMode) {
+        case "normal":
+          handleNormalPointerEnter(pos);
+          break;
+        case "erase":
+          handleErasePointerEnter(pos);
+          break;
+        case "special":
+          handleSpecialPointerEnter(pos);
+          break;
+      }
 
-  function handleSpecialBlockPointerEnter(pos: number) {
-    if (
-      !erase_mode &&
-      currentFieldNode.get()!.board[pos] === Tetromino.Empty &&
-      !specialBlocks!.includes(pos) &&
-      specialBlocks!.length < 4
-    ) {
-      specialBlocks!.push(pos);
-      updateOverrideBoard();
+      function handleNormalPointerEnter(pos: number) {
+        draw(pos, get(selectedMino));
+      }
 
-      if (specialBlocks!.length == 4) {
-        applySpecialBlocks();
+      function handleErasePointerEnter(pos: number) {
+        draw(pos, Tetromino.Empty);
+      }
+
+      function handleSpecialPointerEnter(pos: number) {
+        if (!specialBlocks!.includes(pos) && specialBlocks!.length < 4) {
+          specialBlocks!.push(pos);
+          updateOverrideBoard();
+
+          if (specialBlocks!.length == 4) {
+            applySpecialBlocks();
+          }
+        }
       }
     }
   }
@@ -339,32 +370,39 @@
     // specialBlocks = [];
     //    updateOverrideBoard();
     currentFieldNode.update((env) => {
-      if (env) env.board = [...editBoard];
+      if (env) env.board = [...editBoard!];
       return env;
     });
   }
 
-  function handlePointerUp(event: FederatedPointerEvent) {
-    pointerUpCommon(event);
-  }
+  function handlePointerUp(event: Event) {
+    switch (drawMode) {
+      case "normal":
+      case "erase":
+        handleNormalPointerUp();
+        break;
+      case "special":
+        specialBlocks = [];
+        updateOverrideBoard();
+        break;
+    }
 
-  function handlePointerUpOutside(event: FederatedPointerEvent) {
-    pointerUpCommon(event);
-  }
+    drawMode = null;
+    editBoard = null;
+    specialBlocks = null;
 
-  function pointerUpCommon(event: FederatedPointerEvent) {
-    if (event.button === 0 && isLeftClicking && specialBlocks === null) {
-      const diff = countBoardDiff(editBoard, currentFieldNode.get()!.board);
-      if (diff == 0) return history;
+    function handleNormalPointerUp() {
+      const diff = countBoardDiff(editBoard!, currentFieldNode.get()!.board);
+      if (diff == 0) return;
 
       currentFieldNode.update((env) => {
-        if (env) env.board = [...editBoard];
+        if (env) env.board = [...editBoard!];
         return env;
       });
 
       history.update((history: History) => {
         let content: String;
-        if (erase_mode) {
+        if (drawMode == "erase") {
           content = `<span style="color: red;">-${diff}</span>`;
         } else {
           content = `${Tetromino[get(selectedMino)]}<span style="color: green;"> +${diff}</span>`;
@@ -380,6 +418,11 @@
     }
   }
 
+  function handlePointerUpOutside(event: FederatedPointerEvent) {
+    handlePointerUp(event);
+  }
+
+  //TODO:
   function handleFileDrop(event: Event) {
     event.preventDefault();
     isDragOver = false;
@@ -389,7 +432,6 @@
 
     const file = files[0];
 
-    // ファイルタイプをチェック
     if (file.type === "application/json" || file.name.endsWith(".json")) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -397,7 +439,6 @@
           const content = e.target?.result as string;
           const data = JSON.parse(content);
 
-          // ファイルデータを処理するカスタムイベントを発火
           document.dispatchEvent(
             new CustomEvent("onFileDropped", {
               detail: { file, data, type: "json" },
@@ -460,8 +501,7 @@
 
     //初期化
     selectedMino.set(0);
-    isLeftClicking = false;
-    erase_mode = false;
+    //drawMode = "normal";
 
     //初期状態のボードを履歴に追加
     history.update((history: History) => {
@@ -480,8 +520,6 @@
     document.removeEventListener("requestbotfield", requestBotField);
     document.removeEventListener("databaseLoaded", handleFieldUpdate);
 
-    window.removeEventListener("mousedown", handleMouseDown);
-    window.removeEventListener("mouseup", handleMouseUp);
     window.removeEventListener("keydown", handleKeyDown);
 
     // ファイルドロップイベントリスナーを削除
@@ -498,18 +536,6 @@
   function handleKeyDown(this: Window, ev: KeyboardEvent) {
     if (/^[1-9]$/.test(ev.key)) {
       selectedMino.set(parseInt(ev.key) - 1);
-    }
-  }
-
-  function handleMouseDown(event: MouseEvent) {
-    if (event.button === 0) {
-      isLeftClicking = true;
-    }
-  }
-
-  function handleMouseUp(event: MouseEvent) {
-    if (event.button === 0) {
-      isLeftClicking = false;
     }
   }
 

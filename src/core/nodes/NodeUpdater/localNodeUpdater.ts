@@ -6,7 +6,7 @@ import { NodeUpdater } from "./nodeUpdater";
 
 export class LocalNodeUpdater extends NodeUpdater {
 	async load(dbBin: Uint8Array, useSplash: boolean): Promise<void> {
-		loadDatabase(dbBin, useSplash);
+		await loadDatabase(dbBin, useSplash);
 	}
 	async update(node: DatabaseNode): Promise<void> {
 		updateNodeDatabase(node);

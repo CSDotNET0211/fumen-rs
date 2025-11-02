@@ -54,23 +54,22 @@ export function registerCommands() {
 
 			//1 -> 1のときは更新されないので、強制的に-1にしておく
 			currentFieldIndex.set(-1);
-			await get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary(), false);
-
+			await get(nodeUpdater)!.load(generateDefaultDatabaseAsBinary(), get(currentWindow) !== WindowType.Splash);
 			history.set(new History());
-			history.update((history: History) => {
-				history.add(
-					get(t)("common.history-base"),
-					currentFieldNode.get()!.clone(),
-					"",
-				);
-				return history;
-			});
+			/*	history.update((history: History) => {
+					history.add(
+						get(t)("common.history-base"),
+						currentFieldNode.get()!.clone(),
+						"",
+					);
+					return history;
+				});*/
 
 			//	get(nodeUpdater)!.load
 
 
-			currentField.set(FieldType.TetrisEdit);
-			currentWindow.set(WindowType.Field);
+			//	currentField.set(FieldType.TetrisEdit);
+			//	currentWindow.set(WindowType.Field);
 
 			snapshot.set([]);
 			currentProjectPath.set(null);

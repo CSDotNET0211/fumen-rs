@@ -23,6 +23,10 @@ export type CursorInfo = {
 	location: number | null;
 };
 
+export const roomName = writable("");
+export const userName = writable("");
+
+
 export let wsSocket: Socket | null = null;
 export const players = writable<Set<{ id: string; name: string; color: string }>>(
 	new Set()
@@ -87,25 +91,21 @@ export async function joinRoomWS(
 	}
 
 	const { roomPlayers, isHost, playerId }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean, playerId: string } = await wsSocket?.emitWithAck("join_room", roomName, userName);
-	//console.log(roomPlayers, isHost, playerId);
 
 	players.set(new Set(roomPlayers));
 
-	// Register cursors for all players in the room with local colors (自分以外)
 
 	myPlayerId = wsSocket?.id ?? "";
 
 	assignColors(roomPlayers.filter(player => player.id !== myPlayerId));
 
-	// Register tetris board move event listener
 	document.addEventListener("onTetrisBoardMove", onTetrisBoardMove);
 
-	// Start position update interval
 	positionSendInterval = setInterval(sendPositionIfChanged, 50);
 
 	if (!isHost) {
 		const dbBin = await getHostDB();
-		loadDatabase(dbBin, true);
+		await loadDatabase(dbBin, true);
 	}
 	nodeUpdater.set(new OnlineNodeUpdater());
 }
@@ -115,7 +115,7 @@ export async function sendUpdateDatabaseWS(dbBin: Uint8Array, useSplash: boolean
 	const response = await wsSocket?.emitWithAck("update_db", dbBin, useSplash);
 	const uIntResponse = new Uint8Array(response);
 
-	loadDatabase(uIntResponse, true);
+	await loadDatabase(uIntResponse, true);
 }
 
 
@@ -124,7 +124,7 @@ export function throwErrorServer() {
 	wsSocket?.emit("debug_throw_error");
 }
 
-
+//サーバー側で全員に変更イベントを送信ではなく送信側はackになっているのは、asyncで待ちたいため
 export async function sendCreateNodeWS(node: DatabaseNode): Promise<any> {
 	const response = await wsSocket?.emitWithAck("create_node", BSON.serialize(node));
 
@@ -144,16 +144,14 @@ export async function sendUpdateNodeWS(node: DatabaseNode): Promise<any> {
 }
 
 export async function sendDeleteNodeWS(node: DatabaseNode): Promise<any> {
-	throw new Error("Not implemented");
-	//TODO: aaa
-	return new Promise((resolve, reject) => {
-		wsSocket?.once("node_deleted", (response: any) => {
-			resolve(response);
-		});
-		wsSocket?.emit("delete_node", BSON.serialize(node));
-	});
+	const response = await wsSocket?.emitWithAck("delete_node", BSON.serialize(node));
 
-	deleteNodeDatabase(node);
+	const uIntResponse = new Uint8Array(response);
+	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
+	return deleteNodeDatabase(databaseNode);
+
+
+
 }
 
 export async function getHostDB(): Promise<Uint8Array> {
@@ -289,7 +287,6 @@ function registerEvents(wsSocket: Socket) {
 			new Set([...get(players)].filter((player) => player.id !== playerId))
 		);
 
-		// Reassign colors for remaining players (自分以外)
 		assignColors([...get(players)].filter(player => player.id !== myPlayerId));
 	});
 
@@ -299,11 +296,11 @@ function registerEvents(wsSocket: Socket) {
 	});
 
 
-	wsSocket.on("update_db", (dbBin: ArrayBuffer, useSplash: boolean, ack) => {
+	wsSocket.on("update_db", async (dbBin: ArrayBuffer, useSplash: boolean, ack) => {
 		const uIntResponse = new Uint8Array(dbBin);
 
 
-		loadDatabase(uIntResponse, true);
+		await loadDatabase(uIntResponse, true);
 
 		if (ack)
 			ack(uIntResponse);

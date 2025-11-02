@@ -17,7 +17,6 @@ export class OnlineNodeUpdater extends NodeUpdater {
 
 	}
 	async delete(node: DatabaseNode): Promise<void> {
-
 		await sendDeleteNodeWS(node);
 	}
 }

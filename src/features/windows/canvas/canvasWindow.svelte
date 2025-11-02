@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { currentWindow, WindowType } from "../../../app/stores/window";
   import { currentFieldIndex } from "../../../app/stores/data";
   import { canvasView } from "../../../app/stores/data";
@@ -49,7 +49,7 @@
       return new TextCanvasNode(databaseNode.id!);
     } else {
       throw new Error(
-        `Unknown database node type: ${databaseNode.constructor.name}`
+        `Unknown database node type: ${databaseNode.constructor.name}`,
       );
     }
   }
@@ -124,7 +124,7 @@
   function clamp(val: number, min: number, max: number) {
     return Math.max(min, Math.min(max, val));
   }
-
+  /*
   function handleContainerDblClick(e: MouseEvent) {
     if (!canvasInner) return;
     const containerRect = container.getBoundingClientRect();
@@ -134,7 +134,7 @@
     y = clamp(y, 0, CANVAS_HEIGHT / scale);
     throw new Error("Not implemented: handleContainerDblClick");
     //TextNode.insertDB(x, y, 30, "", "#ffffff", "transparent");
-  }
+  }*/
 
   // Field Node Event Handler Registration/Removal Functions
   function registerFieldNodeEventHandlers() {
@@ -181,6 +181,15 @@
 
   onMount(async () => {
     currentFieldIndex.set(-1);
+
+    // DOM要素が利用可能になるまで待機
+    await tick();
+
+    // 要素の存在確認
+    if (!container || !canvasInner) {
+      console.error("Canvas elements are not available");
+      return;
+    }
 
     //サムネの更新が必要な場合は更新
     await updateAllThumbnailsDatabase();
@@ -297,13 +306,14 @@
       try {
         const canvasNode = createCanvasNode(dataBaseNode);
         canvasNode.render(dataBaseNode);
+        console.log(canvasInner);
         canvasInner.appendChild(canvasNode.element!);
         canvasNodes.set(canvasNode.id, canvasNode);
       } catch (error) {
         console.error(
           `Failed to create canvas node for database node:`,
           dataBaseNode,
-          error
+          error,
         );
       }
     });
@@ -476,8 +486,8 @@
                     x,
                     y,
                     undefined,
-                    new TetrisEnv()
-                  )
+                    new TetrisEnv(),
+                  ),
                 );
                 updateThumbnailDatabase(index);
               },
@@ -497,8 +507,8 @@
                     "New Text",
                     30,
                     "#ffffff",
-                    "transparent"
-                  )
+                    "transparent",
+                  ),
                 );
               },
             },
