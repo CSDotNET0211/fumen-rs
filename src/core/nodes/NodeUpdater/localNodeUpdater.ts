@@ -16,6 +16,6 @@ export class LocalNodeUpdater extends NodeUpdater {
 
 	}
 	async delete(node: DatabaseNode): Promise<void> {
-		deleteNodeDatabase(node);
+		await deleteNodeDatabase(node);
 	}
 }

@@ -154,20 +154,15 @@ export async function loadDatabase(dbData: Uint8Array<ArrayBufferLike>, useSplas
 			}, { once: true });
 		});
 
-		//currentField.set(FieldType.TetrisEdit);
 		currentWindow.set(WindowType.Splash);
 		currentFieldIndex.set(-1);
 
 		await waitForTransition;
 
 		const firstFieldResult = getLatestFieldId()!;
-		//if (firstFieldResult) {
 		currentFieldIndex.set(firstFieldResult);
 		currentWindow.set(originalWindow);
 		WindowFadeDuration.set(300);
-		//}
-
-
 	} else {
 		currentFieldIndex.set(-1);
 		const firstFieldResult = getLatestFieldId();
@@ -218,7 +213,7 @@ export function createNodeDatabase(updateNode: DatabaseNode): number {
 
 
 
-export function deleteNodeDatabase(node: DatabaseNode) {
+export async function deleteNodeDatabase(node: DatabaseNode) {
 	if (!db) {
 		throw new Error("Database is not initialized.");
 	}
@@ -229,12 +224,28 @@ export function deleteNodeDatabase(node: DatabaseNode) {
 
 	node.deleteNode(db);
 
+	if (node.id === get(currentFieldIndex)) {
+		const originalWindow = get(currentWindow);
 
+		const waitForTransition = new Promise<void>((resolve) => {
+			document.addEventListener("onWindowTransitionEnd", async () => {
+				await new Promise(resolve => setTimeout(resolve, 100));
+				resolve();
+			}, { once: true });
+		});
 
-	const firstFieldResult = getLatestFieldId();
-	if (firstFieldResult) {
+		currentWindow.set(WindowType.Splash);
+		currentFieldIndex.set(-1);
+
+		await waitForTransition;
+
+		const firstFieldResult = getLatestFieldId()!;
 		currentFieldIndex.set(firstFieldResult);
+		currentWindow.set(originalWindow);
+		WindowFadeDuration.set(300);
 	}
+
+
 }
 
 export function getNodeDatabase(id: number): DatabaseNode | null {
