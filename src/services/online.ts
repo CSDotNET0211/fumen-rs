@@ -89,7 +89,6 @@ export async function joinRoomWS(
 		);
 		return;
 	}
-
 	const { roomPlayers, isHost, playerId }: { roomPlayers: { id: string; name: string; color: string }[], isHost: boolean, playerId: string } = await wsSocket?.emitWithAck("join_room", roomName, userName);
 
 	players.set(new Set(roomPlayers));
@@ -102,7 +101,6 @@ export async function joinRoomWS(
 	document.addEventListener("onTetrisBoardMove", onTetrisBoardMove);
 
 	positionSendInterval = setInterval(sendPositionIfChanged, 50);
-
 	if (!isHost) {
 		const dbBin = await getHostDB();
 		await loadDatabase(dbBin, true);
@@ -148,10 +146,7 @@ export async function sendDeleteNodeWS(node: DatabaseNode): Promise<any> {
 
 	const uIntResponse = new Uint8Array(response);
 	const databaseNode = resolveDatabaseNode(BSON.deserialize(uIntResponse));
-	return deleteNodeDatabase(databaseNode);
-
-
-
+	return await deleteNodeDatabase(databaseNode);
 }
 
 export async function getHostDB(): Promise<Uint8Array> {
@@ -333,7 +328,7 @@ function registerEvents(wsSocket: Socket) {
 		const databaseNodeObj = BSON.deserialize(uIntResponse);
 
 		const databaseNode = resolveDatabaseNode(databaseNodeObj);
-		deleteNodeDatabase(databaseNode);
+		await deleteNodeDatabase(databaseNode);
 		if (callback)
 			callback(nodeBson);
 	});

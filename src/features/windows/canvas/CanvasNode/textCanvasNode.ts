@@ -116,20 +116,20 @@ export class TextCanvasNode extends CanvasNode {
 
 		const oldText = textNode.element.textContent || "";
 
-		function cleanup() {
+		async function cleanup() {
 			if (textNode.element && textNode.element.parentNode) {
 				textNode.element.parentNode.removeChild(textNode.element);
 			}
 			// nodes配列からも削除
-			deleteNodeDatabase(getNodeDatabase(textNode.id)!);
+			await deleteNodeDatabase(getNodeDatabase(textNode.id)!);
 			//TextNode.deleteDB(textNode.id);
 		}
 
-		const confirm = () => {
+		const confirm = async () => {
 			if (!textNode.element) return;
 			const newText = (textNode.element.textContent || "").trim();
 			if (!newText) {
-				cleanup();
+				await cleanup();
 				return;
 			}
 
@@ -145,7 +145,7 @@ export class TextCanvasNode extends CanvasNode {
 			get(nodeUpdater)!.update(new TextDatabaseNode(textNode.id, undefined, undefined, newText, undefined, undefined, undefined));
 			//TextNode.updateDB(textNode.id, textNode.x, textNode.y, textNode.size, textNode.text, textNode.color, textNode.backgroundColor);
 		}
-		const cancel = () => {
+		const cancel = async () => {
 			if (!textNode.element) return;
 			if (oldText.trim()) {
 				textNode.element.textContent = oldText;
@@ -153,7 +153,7 @@ export class TextCanvasNode extends CanvasNode {
 				textNode.element.style.userSelect = "none";
 				textNode.element.className = "canvas-text confirmed";
 			} else {
-				cleanup();
+				await cleanup();
 			}
 		}
 
