@@ -5,10 +5,6 @@
 
   import { t } from "../../../translations/translations.ts";
   import { exit } from "@tauri-apps/plugin-process";
-  import { max } from "@tensorflow/tfjs";
-  import { openUrl } from "@tauri-apps/plugin-opener";
-  import { shortcuts } from "../../../core/shortcuts/shortcuts.ts";
-  import { commands } from "../../../core/commands/commands.ts";
   import { MenuItem } from "./MenuItem.ts";
   import { MenuItemType } from "./MenuItemType.ts";
 
@@ -37,7 +33,7 @@
 
       unlistenBlur = await currentWindow.listen("tauri://blur", () => {
         (document.querySelector(
-          ".panel"
+          ".panel",
         ) as HTMLElement)!.style.backgroundColor = "#1f1f1f";
         document.querySelectorAll(".menu-item").forEach((button) => {
           (button as HTMLElement).style.color = "#9d9d9d";
@@ -48,7 +44,7 @@
 
       unlistenFocus = await currentWindow.listen("tauri://focus", () => {
         (document.querySelector(
-          ".panel"
+          ".panel",
         ) as HTMLElement)!.style.backgroundColor = "#181818";
         document.querySelectorAll(".menu-item").forEach((button) => {
           (button as HTMLElement).style.color = "#cccccc";
@@ -81,7 +77,7 @@
 
   async function generateSubmenu(
     menuPath: string[],
-    customMenuItems?: MenuItem[]
+    customMenuItems?: MenuItem[],
   ): Promise<HTMLDivElement> {
     const items = customMenuItems || get(menuItems);
     let subMenuItems = items!;
@@ -94,7 +90,7 @@
     }
 
     const subMenuTemplate = document.getElementById(
-      "submenu"
+      "submenu",
     ) as HTMLDivElement;
     const subMenu = subMenuTemplate.cloneNode(true) as HTMLDivElement;
     subMenu.removeAttribute("id");
@@ -112,7 +108,7 @@
       switch (subMenuItem.type) {
         case MenuItemType.Separator:
           const separatorTemplate = document.getElementById(
-            "separator"
+            "separator",
           ) as HTMLDivElement;
           const separator = separatorTemplate.cloneNode(true) as HTMLDivElement;
           separator.removeAttribute("id");
@@ -123,10 +119,10 @@
           if (!subMenuItem.disabled) subMenu.classList.remove("disabled");
 
           const submenuItemTemplate = document.getElementById(
-            "submenu-item"
+            "submenu-item",
           ) as HTMLDivElement;
           const subMenuItemElement = submenuItemTemplate.cloneNode(
-            true
+            true,
           ) as HTMLDivElement;
           subMenuItemElement.removeAttribute("id");
           subMenuItemElement.style.display = "";
@@ -148,20 +144,20 @@
           subMenu.appendChild(subMenuItemElement);
 
           const title = subMenuItemElement.querySelector(
-            "span:first-child"
+            "span:first-child",
           ) as HTMLSpanElement;
           title.innerText = subMenuItem.name;
 
           if (subMenuItem.shortcut) {
             const shortcut = subMenuItemElement.querySelector(
-              ".shortcut"
+              ".shortcut",
             ) as HTMLSpanElement;
             shortcut.innerText = subMenuItem.shortcut;
           }
 
           if (subMenuItem.submenu) {
             const arrow = subMenuItemElement.querySelector(
-              ".arrow"
+              ".arrow",
             ) as HTMLSpanElement;
             arrow.innerText = "▶";
           }
@@ -174,11 +170,11 @@
                 subMenuItemElement,
                 menuPath,
                 subMenuItem,
-                customMenuItems
+                customMenuItems,
               );
             } else {
               const menuBar = document.getElementById(
-                "menu-bar"
+                "menu-bar",
               ) as HTMLDivElement;
               const allSubmenus = menuBar.querySelectorAll(".submenu");
               const currentPathArr = [...menuPath, subMenuItem.name];
@@ -213,10 +209,10 @@
           if (!subMenuItem.disabled) subMenu.classList.remove("disabled");
 
           const toggleItemTemplate = document.getElementById(
-            "submenu-item"
+            "submenu-item",
           ) as HTMLDivElement;
           const toggleItemElement = toggleItemTemplate.cloneNode(
-            true
+            true,
           ) as HTMLDivElement;
           toggleItemElement.removeAttribute("id");
           toggleItemElement.style.display = "";
@@ -233,26 +229,26 @@
           subMenu.appendChild(toggleItemElement);
 
           const toggleTitle = toggleItemElement.querySelector(
-            "span:first-child"
+            "span:first-child",
           ) as HTMLSpanElement;
           toggleTitle.innerText = subMenuItem.name;
 
           if (subMenuItem.shortcut) {
             const toggleShortcut = toggleItemElement.querySelector(
-              ".shortcut"
+              ".shortcut",
             ) as HTMLSpanElement;
             toggleShortcut.innerText = subMenuItem.shortcut;
           }
 
           if (subMenuItem.checked) {
             const checkmarkTemplate = document.getElementById(
-              "submenu-checked"
+              "submenu-checked",
             ) as HTMLDivElement;
             const checkmark = checkmarkTemplate.querySelector(
-              "img.checkmark"
+              "img.checkmark",
             ) as HTMLImageElement;
             const clonedCheckmark = checkmark.cloneNode(
-              true
+              true,
             ) as HTMLImageElement;
             toggleItemElement.insertBefore(clonedCheckmark, toggleTitle);
           }
@@ -292,7 +288,7 @@
   function handleClickOutside(event: MouseEvent) {
     if (
       !(event.target as HTMLElement).closest(
-        '.menu-item, .submenu, #menu-bar, .play-control-button[data-type="More"], .custom-active'
+        '.menu-item, .submenu, #menu-bar, .play-control-button[data-type="More"], .custom-active',
       )
     ) {
       closeMenu();
@@ -303,7 +299,7 @@
     menu: string,
     shouldOpen?: boolean,
     menuItemElement?: HTMLElement,
-    customMenuItems?: MenuItem[]
+    customMenuItems?: MenuItem[],
   ) {
     const items = (customMenuItems || get(menuItems))!;
     const menuItem = items.filter((item) => item.name === menu)[0];
@@ -317,7 +313,7 @@
     menuItemElement =
       menuItemElement ||
       (document.querySelector(
-        `.menu-item:nth-child(${items.indexOf(menuItem) + 1})`
+        `.menu-item:nth-child(${items.indexOf(menuItem) + 1})`,
       ) as HTMLElement);
 
     if (!menuItemElement) {
@@ -368,7 +364,7 @@
       menuItemElement.classList.add(
         menuItemElement.classList.contains("menu-item")
           ? "active"
-          : "custom-active"
+          : "custom-active",
       );
     } else {
       closeMenu();
@@ -399,7 +395,7 @@
           autoFillQueue.update((value) => !value);
         },
         undefined,
-        get(autoFillQueue)
+        get(autoFillQueue),
       ),
       new MenuItem(
         "auto-apply-field",
@@ -408,12 +404,12 @@
         "",
         () => autoApplyField.update((value) => !value),
         undefined,
-        get(autoApplyField)
+        get(autoApplyField),
       ),
     ]);
 
     const moreButton = document.querySelector(
-      '.play-control-button[data-type="More"]'
+      '.play-control-button[data-type="More"]',
     ) as HTMLElement;
     toggleMenu("More", undefined, moreButton, [menu]);
   }
@@ -440,7 +436,7 @@
     subMenuItemElement: HTMLDivElement,
     menuPath: string[],
     subMenuItem: MenuItem,
-    customMenuItems?: MenuItem[]
+    customMenuItems?: MenuItem[],
   ) {
     // Check if this path is already in the registry
     const currentPath = [...menuPath, subMenuItem.name];
@@ -548,7 +544,7 @@
             // More space on right, place as far right as possible without going off screen
             leftPosition = Math.min(
               subMenuItemElement.offsetWidth,
-              screenWidth - rect.left - submenuRect.width
+              screenWidth - rect.left - submenuRect.width,
             );
           } else {
             // More space on left, place as far left as possible without going off screen

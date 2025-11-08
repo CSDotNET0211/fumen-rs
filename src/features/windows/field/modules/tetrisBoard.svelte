@@ -6,6 +6,7 @@
     Graphics,
     Rectangle,
     Sprite,
+    Text,
     Texture,
   } from "pixi.js";
   import { Tetromino } from "tetris/src/tetromino";
@@ -309,6 +310,49 @@
     }
   }
 
+  export function createColumnLabels(board_container: Container) {
+    for (let x = 0; x < TetrisEnv.WIDTH; x++) {
+      const label = new Text({
+        text: x.toString(),
+        style: {
+          fontFamily: "Arial",
+          fontSize: 14,
+          fill: 0x616161,
+          align: "center",
+        },
+      });
+
+      // ラベルをセルの中央に配置
+      label.eventMode = "none";
+      label.x = x * CELL_SIZE + CELL_SIZE / 2;
+      label.y = CELL_SIZE / 2; // セルの縦方向中央に配置
+      label.anchor.set(1); // 中央揃え
+
+      board_container.addChild(label);
+    }
+  }
+
+  export function createRowLabels(board_container: Container) {
+    for (let y = 0; y < TetrisEnv.HEIGHT; y++) {
+      const label = new Text({
+        text: String.fromCharCode(65 + y),
+        style: {
+          fontFamily: "Arial",
+          fontSize: 14,
+          fill: 0x616161,
+          align: "center",
+        },
+      });
+
+      label.eventMode = "none";
+      label.x = 8;
+      label.y = y * CELL_SIZE + CELL_SIZE / 2;
+      label.anchor.set(0.5, 0.5);
+
+      board_container.addChild(label);
+    }
+  }
+
   export async function initializePixijs(
     app: Application,
     canvasParent: HTMLCanvasElement,
@@ -343,6 +387,8 @@
     app.stage.addChild(boardContainer);
 
     initializeCells(boardContainer, boardSprites);
+    createColumnLabels(boardContainer);
+    createRowLabels(boardContainer);
   }
 
   // グローバル変数でテクスチャをキャッシュ
