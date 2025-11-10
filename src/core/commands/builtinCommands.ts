@@ -121,7 +121,7 @@ export function registerCommands() {
 						const uint8Array = new Uint8Array(arrayBuffer);
 
 						currentFieldIndex.set(-1);
-						await get(nodeUpdater)!.load(uint8Array, false);
+						await get(nodeUpdater)!.load(uint8Array, true);
 
 						// Set current project path
 						currentProjectPath.set(file);

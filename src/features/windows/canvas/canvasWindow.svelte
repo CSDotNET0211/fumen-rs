@@ -300,13 +300,13 @@
 
       if (!dataBaseNode) {
         console.warn(`Database node not found for id: ${node.id}`);
+
         return;
       }
 
       try {
         const canvasNode = createCanvasNode(dataBaseNode);
         canvasNode.render(dataBaseNode);
-        console.log(canvasInner);
         canvasInner.appendChild(canvasNode.element!);
         canvasNodes.set(canvasNode.id, canvasNode);
       } catch (error) {
@@ -318,146 +318,6 @@
       }
     });
   }
-
-  /*
-  function onFieldNodeChanged(event: Event) {
-    let customEvent = event as CustomEvent;
-    switch (customEvent.detail.action) {
-      case "created":
-        const node = new FieldNode(
-          customEvent.detail.x ??
-            (get(canvasView)?.x ?? CANVAS_WIDTH / 2) +
-              container.clientWidth / 2,
-          customEvent.detail.y ??
-            (get(canvasView)?.y ?? CANVAS_HEIGHT / 2) +
-              container.clientHeight / 2,
-          customEvent.detail.id,
-          customEvent.detail.thumbnail ?? get(unknownThumbnailBase64)
-        );
-        node.render();
-        canvasInner.appendChild(node.element!);
-        fieldNodes.set(customEvent.detail.id, node);
-
-        if (customEvent.detail.thumbnail === undefined) {
-          // サムネが未指定の場合はデフォルトのサムネを設定
-          FieldNode.updateThumbnailDB(customEvent.detail.id);
-          //          (node.element as HTMLImageElement)!.src = "./static/unknown.png";
-          // node.setThumbnail(get(unknownThumbnailBase64));
-        } else {
-          (node.element as HTMLImageElement)!.src =
-            customEvent.detail.thumbnail;
-        }
-
-        //   fieldNodeThumbnailUpdate(customEvent.detail.id);
-        // fieldNodeCoordinatesUpdate(customEvent.detail.id);
-        break;
-      case "updatedThumbnail":
-        const element = fieldNodes.get(customEvent.detail.id)
-          ?.element as HTMLImageElement;
-
-        if (element) {
-          element.src = customEvent.detail.thumbnail;
-        }
-
-        break;
-
-      case "updatedCoordinates":
-        const updatedNode = fieldNodes.get(customEvent.detail.id);
-        if (updatedNode) {
-          updatedNode.setPosition(customEvent.detail.x, customEvent.detail.y);
-          //updatedNode.render(canvasInner);
-          // fieldNodeCoordinatesUpdate(customEvent.detail.id);
-        }
-        break;
-
-      case "updated":
-        //	const updatedFieldNode = fieldNodes.get(customEvent.detail.id);
-        //	if (updatedFieldNode) {
-        //	  updatedFieldNode.setThumbnail(customEvent.detail.thumbnail);
-        // fieldNodeThumbnailUpdate(customEvent.detail.id);
-        //	}
-        break;
-
-      case "deleted":
-        fieldNodes.get(customEvent.detail.id)?.element?.remove();
-        fieldNodes.delete(customEvent.detail.id);
-        break;
-    }
-
-    /*	getAllFieldNodes().forEach((node) => {
-
-	});
-
-    //生成があった場合は位置とサムネ更新
-    //id渡す特定のやつで
-    fieldNodeThumbnailUpdateAll();
-    fieldNodeCoordinatesUpdateAll();
-	
-  }*/
-
-  /*
-  function onTextNodeChanged(event: Event) {
-    let customEvent = event as CustomEvent;
-    switch (customEvent.detail.action) {
-      case "created":
-        const textNode = new TextNode(
-          customEvent.detail.id,
-          customEvent.detail.x ?? get(canvasView)!.x,
-          customEvent.detail.y ?? get(canvasView)!.y,
-          customEvent.detail.text ?? "",
-          customEvent.detail.size ?? 50
-        );
-        textNode.render();
-        console.log(canvasInner);
-        canvasInner.appendChild(textNode.element!);
-        textNodes.set(textNode.id, textNode);
-        TextNode.handleTextNodeEdit(textNode);
-        break;
-      case "updated":
-        console.log("updated", customEvent.detail);
-
-        //TODO:render関数と似たような感じの方がいいかも
-        const updatedTextNode = textNodes.get(customEvent.detail.id);
-        if (updatedTextNode) {
-          updatedTextNode.text = customEvent.detail.text;
-          updatedTextNode.size = customEvent.detail.size;
-          updatedTextNode.setPosition(
-            customEvent.detail.x ?? updatedTextNode.getX(),
-            customEvent.detail.y ?? updatedTextNode.getY()
-          );
-          updatedTextNode.color =
-            customEvent.detail.color ?? updatedTextNode.color;
-          updatedTextNode.backgroundColor =
-            customEvent.detail.backgroundColor ??
-            updatedTextNode.backgroundColor;
-
-          updatedTextNode.render(); // ここで　elementを再生成・更新
-        }
-        break;
-      case "deleted":
-        textNodes.get(customEvent.detail.id)?.element?.remove();
-        textNodes.delete(customEvent.detail.id);
-        break;
-    }
-  }*/
-
-  /*
-  function refreshAllTextNodes() {
-    textNodes.forEach((n) => n.element?.parentNode?.removeChild(n.element!));
-    textNodes.clear();
-
-    const result = TextNode.getAllFromDB();
-    result.forEach((node) => {
-      // 新規ノードを生成
-      const x = clamp(node.x, 0, CANVAS_WIDTH);
-      const y = clamp(node.y, 0, CANVAS_HEIGHT);
-      const newNode = new TextNode(node.id, x, y, node.text, node.size);
-      newNode.render();
-      canvasInner.appendChild(newNode.element!);
-      textNodes.set(newNode.id, newNode);
-      // TextNode.handleTextNodeEdit(newNode);
-    });
-  }*/
 
   function handleCanvasRightClick(e: MouseEvent) {
     e.preventDefault();

@@ -171,7 +171,6 @@ export class TextCanvasNode extends CanvasNode {
 		});
 
 		textNode.element.addEventListener("blur", function handler() {
-			console.log("blur");
 			confirm();
 			textNode.element?.removeEventListener("blur", handler);
 		});

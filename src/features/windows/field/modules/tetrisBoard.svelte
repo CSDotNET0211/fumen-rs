@@ -257,31 +257,44 @@
       .rect(0, 0, app.canvas.width, app.canvas.height)
       .fill({ color: 0x000000, alpha: bgOpacity })
       .rect(0, 0, app.renderer.width, CELL_SIZE * 3)
-      .fill({ color: 0x1c1c1c, alpha: bgOpacity });
+      .fill({ color: 0x181818, alpha: bgOpacity });
+
+    for (let y = 3; y <= TetrisEnv.HEIGHT; y++) {
+      const height = y * CELL_SIZE;
+
+      graphics
+        .moveTo(0, height)
+        .lineTo(TetrisEnv.WIDTH * CELL_SIZE, height)
+        .stroke({ color: 0x3e3e3e, width: 1, alpha: borderOpacity });
+    }
+
+    for (let x = 0; x <= TetrisEnv.WIDTH; x++) {
+      const width = x * CELL_SIZE;
+
+      graphics
+        .moveTo(width, CELL_SIZE * 3)
+        .lineTo(width, TetrisEnv.HEIGHT * CELL_SIZE)
+        .stroke({ color: 0x3e3e3e, width: 1, alpha: borderOpacity });
+    }
 
     const texture = app.renderer.generateTexture(graphics);
     const sprite = new Sprite(texture);
     return sprite;
   }
 
+  /*
   export function createTetrisFieldBorder(
     app: Application,
     borderOpacity: number,
     bgOpacity: number,
   ) {
     const graphics = new Graphics();
-    console.log(CELL_SIZE * 3);
-    for (let y = CELL_SIZE * 3; y <= app.canvas.height; y += CELL_SIZE) {
-      graphics
-        .moveTo(0, y)
-        .lineTo(app.canvas.width, y)
-        .stroke({ color: 0x3e3e3e, width: 1, alpha: borderOpacity });
-    }
+    for (let y = 3; y <= 4; y++) {
+      const height = y * CELL_SIZE;
 
-    for (let x = 0; x <= app.renderer.width; x += CELL_SIZE) {
       graphics
-        .moveTo(x, CELL_SIZE * 3)
-        .lineTo(x, app.renderer.height)
+        .moveTo(0, height)
+        .lineTo(TetrisEnv.WIDTH * CELL_SIZE, height)
         .stroke({ color: 0x3e3e3e, width: 1, alpha: borderOpacity });
     }
 
@@ -289,7 +302,7 @@
     const sprite = new Sprite(texture);
     return sprite;
   }
-
+*/
   export function initializeCells(
     board_container: Container,
     board_sprites: CellSprite[],
@@ -324,9 +337,9 @@
 
       // ラベルをセルの中央に配置
       label.eventMode = "none";
-      label.x = x * CELL_SIZE + CELL_SIZE / 2;
+      label.x = x * CELL_SIZE + CELL_SIZE / 2 + 20;
       label.y = CELL_SIZE / 2; // セルの縦方向中央に配置
-      label.anchor.set(1); // 中央揃え
+      label.anchor.set(0.5); // 中央揃え
 
       board_container.addChild(label);
     }
@@ -345,9 +358,9 @@
       });
 
       label.eventMode = "none";
-      label.x = 8;
-      label.y = y * CELL_SIZE + CELL_SIZE / 2;
-      label.anchor.set(0.5, 0.5);
+      label.x = 20 / 2;
+      label.y = y * CELL_SIZE + CELL_SIZE / 2 + 20;
+      label.anchor.set(0.5);
 
       board_container.addChild(label);
     }
@@ -359,8 +372,8 @@
   ) {
     await app.init({
       backgroundAlpha: 0,
-      width: CELL_SIZE * TetrisEnv.WIDTH,
-      height: CELL_SIZE * TetrisEnv.HEIGHT,
+      width: CELL_SIZE * TetrisEnv.WIDTH + 20,
+      height: CELL_SIZE * TetrisEnv.HEIGHT + 20,
       backgroundColor: 0x000000,
     });
 
@@ -379,16 +392,19 @@
 
     boardContainer.addChild(createTetrisFieldBg(app, borderOpacity, bgOpacity));
 
-    let borderSprite = createTetrisFieldBorder(app, borderOpacity, bgOpacity);
-    //TODO: ここきれいにする！
-    borderSprite.y = CELL_SIZE * 3;
-    boardContainer.addChild(borderSprite);
+    //let borderSprite = createTetrisFieldBorder(app, borderOpacity, bgOpacity);
+    //boardContainer.addChild(borderSprite);
 
     app.stage.addChild(boardContainer);
 
     initializeCells(boardContainer, boardSprites);
-    createColumnLabels(boardContainer);
-    createRowLabels(boardContainer);
+    boardContainer.x = 20;
+    boardContainer.y = 20;
+
+    let labelContainer = new Container();
+    app.stage.addChild(labelContainer);
+    createColumnLabels(labelContainer);
+    createRowLabels(labelContainer);
   }
 
   // グローバル変数でテクスチャをキャッシュ
@@ -537,9 +553,5 @@
     max-height: 100%;
     width: 100%;
     height: 100%;
-  }
-
-  :global(#canvas > canvas) {
-    aspect-ratio: var(--aspect-ratio, 310/713);
   }
 </style>

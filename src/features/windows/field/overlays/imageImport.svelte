@@ -15,7 +15,6 @@
   import { TetrisEnv } from "tetris/src/tetris_env";
   import {
     createTetrisFieldBg,
-    createTetrisFieldBorder,
     getOffScreenCanvasImage,
     initializeCells,
     initializePixijs,
@@ -193,7 +192,7 @@
 
     boardContainer.addChild(loadedImage);
 
-    boardContainer.addChild(createTetrisFieldBorder(app, 1, 1));
+    //boardContainer.addChild(createTetrisFieldBorder(app, 1, 1));
 
     app.stage.addChild(boardContainer);
 
