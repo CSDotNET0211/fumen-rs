@@ -90,7 +90,7 @@
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext("2d");
-    ctx!.drawImage(image, 0, 0);
+    ctx!.drawImage(image as HTMLImageElement, 0, 0);
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
 
@@ -288,7 +288,7 @@
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext("2d");
-    ctx!.drawImage(image, 0, 0);
+    ctx!.drawImage(image as HTMLImageElement, 0, 0);
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>
@@ -372,7 +372,7 @@
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext("2d");
-    ctx!.drawImage(image, 0, 0);
+    ctx!.drawImage(image as HTMLImageElement, 0, 0);
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>

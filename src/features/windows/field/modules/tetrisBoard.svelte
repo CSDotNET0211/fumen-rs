@@ -369,11 +369,12 @@
   export async function initializePixijs(
     app: Application,
     canvasParent: HTMLCanvasElement,
+    showPos: boolean = false,
   ) {
     await app.init({
       backgroundAlpha: 0,
-      width: CELL_SIZE * TetrisEnv.WIDTH + 20,
-      height: CELL_SIZE * TetrisEnv.HEIGHT + 20,
+      width: CELL_SIZE * TetrisEnv.WIDTH + (showPos ? 20 : 0),
+      height: CELL_SIZE * TetrisEnv.HEIGHT + (showPos ? 20 : 0),
       backgroundColor: 0x000000,
     });
 
@@ -387,8 +388,9 @@
     canvasParent: HTMLCanvasElement,
     borderOpacity: number = 1,
     bgOpacity: number = 1,
+    showPos: boolean = false,
   ) {
-    await initializePixijs(app, canvasParent);
+    await initializePixijs(app, canvasParent, showPos);
 
     boardContainer.addChild(createTetrisFieldBg(app, borderOpacity, bgOpacity));
 
@@ -398,13 +400,16 @@
     app.stage.addChild(boardContainer);
 
     initializeCells(boardContainer, boardSprites);
-    boardContainer.x = 20;
-    boardContainer.y = 20;
+    boardContainer.x = showPos ? 20 : 0;
+    boardContainer.y = showPos ? 20 : 0;
 
     let labelContainer = new Container();
     app.stage.addChild(labelContainer);
-    createColumnLabels(labelContainer);
-    createRowLabels(labelContainer);
+
+    if (false) {
+      createColumnLabels(labelContainer);
+      createRowLabels(labelContainer);
+    }
   }
 
   // グローバル変数でテクスチャをキャッシュ
