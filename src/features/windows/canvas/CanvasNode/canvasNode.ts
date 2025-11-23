@@ -17,6 +17,8 @@ export class CanvasNode {
 	isDragging: boolean;
 	dragOffsetX: number;
 	dragOffsetY: number;
+	// ドラッグ開始時の各ノードの初期位置を保存
+	private initialNodePositions: Map<number, { x: number; y: number }> = new Map();
 
 	constructor(id: number, type: string) {
 		this.id = id;
@@ -108,6 +110,16 @@ export class CanvasNode {
 		this.dragOffsetX = (e.clientX - (parentRect?.left ?? 0)) / scale;
 		this.dragOffsetY = (e.clientY - (parentRect?.top ?? 0)) / scale;
 
+		// ドラッグ開始時に選択されているすべてのノードの初期位置を記録
+		this.initialNodePositions.clear();
+		const selectedIds = get(selectedNodeIds);
+		for (const nodeId of selectedIds) {
+			const node = getNodeDatabase(nodeId);
+			if (node && this.isMovableNode(node)) {
+				this.initialNodePositions.set(nodeId, { x: node.x!, y: node.y! });
+			}
+		}
+
 		document.body.style.cursor = "grabbing";
 		document.addEventListener("mousemove", this.handleDragMove);
 		document.addEventListener("mouseup", this.handleDragEnd);
@@ -131,10 +143,6 @@ export class CanvasNode {
 		const deltaX = currentMouseX - this.dragOffsetX;
 		const deltaY = currentMouseY - this.dragOffsetY;
 
-		// 実際に適用された移動量を記録するための変数
-		let actualDeltaX = 0;
-		let actualDeltaY = 0;
-
 		// 選択されているすべてのノードを移動
 		const selectedIds = get(selectedNodeIds);
 
@@ -142,33 +150,22 @@ export class CanvasNode {
 		for (const nodeId of selectedIds) {
 			const node = getNodeDatabase(nodeId);
 			if (node && this.isMovableNode(node)) {
-				// 各ノードの元の位置
-				const oldX = node.x!;
-				const oldY = node.y!;
+				// ドラッグ開始時の初期位置を取得
+				const initialPos = this.initialNodePositions.get(nodeId);
+				if (!initialPos) continue;
 
-				// 各ノードの新しい位置を計算
-				const newX = clamp(node.x! + deltaX, 0, CANVAS_WIDTH);
-				const newY = clamp(node.y! + deltaY, 0, CANVAS_HEIGHT);
+				// 初期位置 + マウスの移動量で絶対位置を計算
+				const newX = clamp(initialPos.x + deltaX, 0, CANVAS_WIDTH);
+				const newY = clamp(initialPos.y + deltaY, 0, CANVAS_HEIGHT);
 				const snappedX = Math.round(newX / GRID_SNAP_SIZE) * GRID_SNAP_SIZE;
 				const snappedY = Math.round(newY / GRID_SNAP_SIZE) * GRID_SNAP_SIZE;
-
-				// 実際の移動量を計算（最初のノードの移動量を基準にする）
-				if (actualDeltaX === 0 && actualDeltaY === 0) {
-					actualDeltaX = snappedX - oldX;
-					actualDeltaY = snappedY - oldY;
-				}
 
 				// ノードの種類に応じて適切な更新を行う
 				await this.updateNodePosition(node, nodeId, snappedX, snappedY);
 			}
 		}
-
-		// 実際に適用された移動量分だけオフセットを更新（残りの移動量は蓄積される）
-		this.dragOffsetX += actualDeltaX;
-		this.dragOffsetY += actualDeltaY;
 	};
 
-	// 共通のドラッグ終了処理
 	private handleDragEnd = (e: MouseEvent) => {
 		this.isDragging = false;
 		document.body.style.cursor = "";
@@ -186,19 +183,20 @@ export class CanvasNode {
 		}
 	}
 
-	// ノードが移動可能かどうかを判定
 	private isMovableNode(node: DatabaseNode): node is FieldDatabaseNode | TextDatabaseNode {
 		return node instanceof FieldDatabaseNode || node instanceof TextDatabaseNode;
 	}
 
-	// ノードタイプに応じた位置更新
 	private async updateNodePosition(node: DatabaseNode, nodeId: number, x: number, y: number): Promise<void> {
+		console.log(x, y);
+
 		if (node instanceof FieldDatabaseNode) {
 			await get(nodeUpdater)!.update(new FieldDatabaseNode(nodeId, x, y, undefined, undefined));
 		} else if (node instanceof TextDatabaseNode) {
 			await get(nodeUpdater)!.update(new TextDatabaseNode(nodeId, x, y, undefined, undefined, undefined, undefined));
+		} else {
+			throw new Error("Unsupported node type for movement");
 		}
-		// 新しいノードタイプを追加する場合は、ここに条件を追加するだけ
 	}
 
 }
