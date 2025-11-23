@@ -5,11 +5,11 @@ import PreferencesWindow from "../../features/windows/preferences/preferencesWin
 import CanvasWindow from "../../features/windows/canvas/canvasWindow.svelte";
 
 
-export const DEFAULT_WINDOW_WIDTH = 532;
-export const DEFAULT_WINDOW_HEIGHT = 770;
+export const DEFAULT_WINDOW_WIDTH = 532 + 20;
+export const DEFAULT_WINDOW_HEIGHT = 770 + 20;
 
-export const DEFAULT_TETRIS_CANVAS_WIDTH = 310;
-export const DEFAULT_TETRIS_CANVAS_HEIGHT = 713;
+export const DEFAULT_TETRIS_CANVAS_WIDTH = 310 + 20;
+export const DEFAULT_TETRIS_CANVAS_HEIGHT = 713 + 20;
 
 export enum WindowType {
 	Field,

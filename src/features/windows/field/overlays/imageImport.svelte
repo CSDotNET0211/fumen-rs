@@ -15,7 +15,6 @@
   import { TetrisEnv } from "tetris/src/tetris_env";
   import {
     createTetrisFieldBg,
-    createTetrisFieldBorder,
     getOffScreenCanvasImage,
     initializeCells,
     initializePixijs,
@@ -91,7 +90,7 @@
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext("2d");
-    ctx!.drawImage(image, 0, 0);
+    ctx!.drawImage(image as HTMLImageElement, 0, 0);
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
 
@@ -193,7 +192,7 @@
 
     boardContainer.addChild(loadedImage);
 
-    boardContainer.addChild(createTetrisFieldBorder(app, 1, 1));
+    //boardContainer.addChild(createTetrisFieldBorder(app, 1, 1));
 
     app.stage.addChild(boardContainer);
 
@@ -289,7 +288,7 @@
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext("2d");
-    ctx!.drawImage(image, 0, 0);
+    ctx!.drawImage(image as HTMLImageElement, 0, 0);
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>
@@ -373,7 +372,7 @@
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext("2d");
-    ctx!.drawImage(image, 0, 0);
+    ctx!.drawImage(image as HTMLImageElement, 0, 0);
 
     const imageData = ctx!.getImageData(0, 0, image.width, image.height);
     const chunks = getBlockChunks(image.width, image.height).map((chunk) =>
